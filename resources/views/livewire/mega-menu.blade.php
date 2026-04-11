@@ -12,7 +12,7 @@
     </script>
 
     <!-- Main Navigation Bar -->
-    <header class="bg-slate-800 sticky top-0 z-[35] shadow-md">
+    <header class="bg-slate-800 sticky top-0 z-[35] shadow-md" style="font-family: ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';">
         <div class="w-full px-4 md:px-6">
             <div class="flex items-center justify-between h-10">
 
@@ -69,7 +69,7 @@
             <div
                 x-show="openTab === '{{ $tab['id'] }}'"
                 class="fixed left-0 right-0 bg-white border-b border-slate-200 shadow-xl z-40"
-                style="top: 40px;"
+                style="top: 40px; font-family: ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';"
                 x-cloak
             >
                 <div class="w-full px-16 py-6">

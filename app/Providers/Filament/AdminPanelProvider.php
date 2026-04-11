@@ -11,6 +11,8 @@ use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\Widgets\AccountWidget;
 use Filament\Widgets\FilamentInfoWidget;
+use Archilex\AdvancedTables\Plugin\AdvancedTablesPlugin;
+use WatheqAlshowaiter\FilamentStickyTableHeader\StickyTableHeaderPlugin;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -33,10 +35,11 @@ class AdminPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::Indigo, // Insights uses Indigo to differentiate from WMS (Amber)
             ])
+            ->viteTheme('resources/css/filament/admin/theme.css')
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
-                Dashboard::class,
+//                Dashboard::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([
@@ -57,6 +60,15 @@ class AdminPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
             ])
-            ->authGuard('web');
+            ->authGuard('web')
+            ->plugins([
+                StickyTableHeaderPlugin::make(),
+                AdvancedTablesPlugin::make()
+                    ->userViewsEnabled(true)
+                    ->userView(\App\Models\FilamentFilterSets\UserView::class)
+                    ->managedUserView(\App\Models\FilamentFilterSets\ManagedUserView::class)
+                    ->managedPresetView(\App\Models\FilamentFilterSets\ManagedPresetView::class)
+                    ->managedDefaultView(\App\Models\FilamentFilterSets\ManagedDefaultView::class),
+            ]);
     }
 }
