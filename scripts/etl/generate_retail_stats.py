@@ -334,8 +334,11 @@ def main():
         total_rows += count
     logger.info(f"  TOTAL: {total_rows:,} rows")
 
-    # Verify
-    if not args.skip_verify:
+    # Verify (skip in realtime mode — only daily_store_sales + hourly_store_sales
+    # are updated, so cross-report check against daily_item_sales would always fail)
+    if args.mode == "realtime":
+        logger.info("Checksum verification skipped (realtime mode)")
+    elif not args.skip_verify:
         ok = verify_checksums(engine, start_date, end_date)
         if not ok:
             logger.error("CHECKSUM VERIFICATION FAILED")
