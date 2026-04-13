@@ -97,11 +97,8 @@ echo "-> cache hard clear"
 ${PHP_BIN} artisan cache:hard-clear
 
 if [[ -f scripts/etl/requirements.txt ]]; then
-  echo "-> setup Python venv for ETL"
-  if [[ ! -d scripts/etl/venv ]]; then
-    python3 -m venv scripts/etl/venv
-  fi
-  scripts/etl/venv/bin/pip install -q -r scripts/etl/requirements.txt
+  echo "-> install Python ETL dependencies"
+  python3 -m pip install -q --user -r scripts/etl/requirements.txt
 else
   echo "-> no ETL requirements"
 fi
