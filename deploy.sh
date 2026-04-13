@@ -98,7 +98,7 @@ ${PHP_BIN} artisan cache:hard-clear
 
 if [[ -f scripts/etl/requirements.txt ]]; then
   echo "-> install Python ETL dependencies"
-  python3 -m pip install -q --user -r scripts/etl/requirements.txt
+  pip3 install -q --break-system-packages -r scripts/etl/requirements.txt
 else
   echo "-> no ETL requirements"
 fi
