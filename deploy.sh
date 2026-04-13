@@ -96,6 +96,16 @@ fi
 echo "-> cache hard clear"
 ${PHP_BIN} artisan cache:hard-clear
 
+if [[ -f scripts/etl/requirements.txt ]]; then
+  echo "-> setup Python venv for ETL"
+  if [[ ! -d scripts/etl/venv ]]; then
+    python3 -m venv scripts/etl/venv
+  fi
+  scripts/etl/venv/bin/pip install -q -r scripts/etl/requirements.txt
+else
+  echo "-> no ETL requirements"
+fi
+
 if [[ "${USE_NPM}" == "1" && -f package.json ]]; then
   if [[ "${RUN_BUILD}" == "1" ]]; then
     if [[ -f package-lock.json ]]; then

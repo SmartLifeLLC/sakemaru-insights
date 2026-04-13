@@ -90,9 +90,14 @@ class GenerateStatsCommand extends Command
 
     private function findPython(): string
     {
-        // Check common Python paths
+        // Prefer venv Python (has all dependencies installed)
+        $venvPython = base_path('scripts/etl/venv/bin/python3');
+        if (file_exists($venvPython)) {
+            return $venvPython;
+        }
+
+        // Fallback to system Python
         $candidates = [
-            '/Library/Frameworks/Python.framework/Versions/3.12/bin/python3',
             '/usr/local/bin/python3',
             '/usr/bin/python3',
             'python3',

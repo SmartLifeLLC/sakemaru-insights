@@ -24,4 +24,5 @@ Homestead.yaml
 Thumbs.db
 /storage/debugbar/
 __pycache__/
+scripts/etl/venv/
 .claude/
