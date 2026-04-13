@@ -96,13 +96,6 @@ fi
 echo "-> cache hard clear"
 ${PHP_BIN} artisan cache:hard-clear
 
-if [[ -f scripts/etl/requirements.txt ]]; then
-  echo "-> install Python ETL dependencies"
-  pip3 install -q --break-system-packages -r scripts/etl/requirements.txt
-else
-  echo "-> no ETL requirements"
-fi
-
 if [[ "${USE_NPM}" == "1" && -f package.json ]]; then
   if [[ "${RUN_BUILD}" == "1" ]]; then
     if [[ -f package-lock.json ]]; then
