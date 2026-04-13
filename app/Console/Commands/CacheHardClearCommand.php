@@ -3,35 +3,58 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use Psy\Readline\Hoa\ConsoleOutput;
+use Symfony\Component\Console\Output\ConsoleOutput;
 
 class CacheHardClearCommand extends Command
 {
     protected $signature = 'cache:hard-clear';
+    protected $description = 'Clear old caches and rebuild required caches for production release.';
 
-    protected $description = 'Command description';
+    private ConsoleOutput $consoleOutput;
 
-    private ConsoleOutput|null $console_output = null;
-
-
-    public function handle(): void
+    public function handle(): int
     {
+        $this->consoleOutput = new ConsoleOutput();
 
-        $this->console_output = new ConsoleOutput();
-        $this->console_output->writeLine("Run composer dump-autoload");
-        exec('composer dump-autoload');
+        $this->consoleOutput->writeln('<info>Start cache refresh...</info>');
 
-        $cache_clear_commands = [
-            'clear-compiled','optimize','config:cache','route:clear', 'view:clear', 'cache:clear file'
+        $commands = [
+            'optimize:clear',
+            'config:cache',
+            'route:cache',
+            'view:cache',
+            'filament:cache-components',
+            'filament:assets',
+            'icons:cache',
+            'queue:restart'
+
         ];
 
-        foreach ($cache_clear_commands as $cache_clear_command) {
-            $this->runArtisanCommand($cache_clear_command);
+        // event:cache を使っているなら追加
+        // $commands[] = 'event:cache';
+
+        foreach ($commands as $command) {
+            $this->runArtisanCommand($command);
         }
-        $this->console_output->writeLine("Finished.");
+
+        $this->consoleOutput->writeln('<info>Finished cache refresh.</info>');
+
+        return self::SUCCESS;
     }
-    private function runArtisanCommand($command){
-        $this->console_output->writeLine("Run composer {$command}");
-        \Artisan::call($command);
+
+    private function runArtisanCommand(string $command): void
+    {
+        $this->consoleOutput->writeln("Run artisan {$command}");
+
+        $exitCode = \Artisan::call($command);
+
+        $output = trim(\Artisan::output());
+        if ($output !== '') {
+            $this->consoleOutput->writeln($output);
+        }
+
+        if ($exitCode !== 0) {
+            throw new \RuntimeException("Artisan command failed: {$command}");
+        }
     }
 }

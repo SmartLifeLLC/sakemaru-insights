@@ -54,8 +54,31 @@ return [
 
         'stack' => [
             'driver' => 'stack',
-            'channels' => explode(',', (string) env('LOG_STACK', 'single')),
+            'channels' => explode(',', env('LOG_STACK', 'single')),
             'ignore_exceptions' => false,
+        ],
+        'stack_prd' => [
+            'driver' => 'stack',
+            'channels' => ['daily', 'slack', 'slack_critical'],
+            'ignore_exceptions' => false,
+        ],
+
+        'slack' => [
+            'driver' => 'slack',
+            'url' => env('LOG_SLACK_WEBHOOK_URL'),
+            'username' => env('LOG_SLACK_NAME','SAKEMARU-INSIGHTS'),
+            'emoji' => ':boom:',
+            'level' => env('LOG_SLACK_LEVEL', 'info'),
+            'replace_placeholders' => true,
+        ],
+
+        'slack_critical' => [
+            'driver' => 'slack',
+            'url' => env('LOG_SLACK_WEBHOOK_CRITICAL'),
+            'username' => env('LOG_SLACK_NAME','INSIGHTS-CRITICAL'),
+            'emoji' => ':boom:',
+            'level' => env('LOG_SLACK_CRITICAL_LEVEL', 'error'),
+            'replace_placeholders' => true,
         ],
 
         'single' => [
@@ -73,14 +96,6 @@ return [
             'replace_placeholders' => true,
         ],
 
-        'slack' => [
-            'driver' => 'slack',
-            'url' => env('LOG_SLACK_WEBHOOK_URL'),
-            'username' => env('LOG_SLACK_USERNAME', 'Laravel Log'),
-            'emoji' => env('LOG_SLACK_EMOJI', ':boom:'),
-            'level' => env('LOG_LEVEL', 'critical'),
-            'replace_placeholders' => true,
-        ],
 
         'papertrail' => [
             'driver' => 'monolog',
@@ -98,10 +113,10 @@ return [
             'driver' => 'monolog',
             'level' => env('LOG_LEVEL', 'debug'),
             'handler' => StreamHandler::class,
-            'handler_with' => [
+            'formatter' => env('LOG_STDERR_FORMATTER'),
+            'with' => [
                 'stream' => 'php://stderr',
             ],
-            'formatter' => env('LOG_STDERR_FORMATTER'),
             'processors' => [PsrLogMessageProcessor::class],
         ],
 
