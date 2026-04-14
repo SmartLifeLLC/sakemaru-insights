@@ -422,3 +422,31 @@ html.fi {
 .fi-page-content {
     padding-bottom: 0 !important;
 }
+
+/* --- 共通モーダルスタイル（incoming-detail-modal） ---
+ * 仕様: ~/.claude/design-knowledge/modal-design.md
+ * ヘッダー紺色 #1e293b / 白文字 / フッター右寄せ
+ */
+.incoming-detail-modal .fi-modal-header {
+    background-color: #1e293b !important;
+    border-radius: 0.75rem 0.75rem 0 0;
+    padding: 0.75rem 1rem;
+}
+.incoming-detail-modal .fi-modal-header .fi-modal-heading {
+    color: #ffffff !important;
+}
+.incoming-detail-modal .fi-modal-header .fi-modal-description {
+    color: #94a3b8 !important;
+}
+.incoming-detail-modal .fi-modal-header .fi-modal-close-btn {
+    color: #ffffff !important;
+}
+.incoming-detail-modal .fi-modal-header .fi-modal-close-btn:hover {
+    color: #cbd5e1 !important;
+}
+.incoming-detail-modal .fi-modal-footer {
+    justify-content: flex-end !important;
+}
+.incoming-detail-modal .fi-modal-footer > * {
+    justify-content: flex-end !important;
+}
