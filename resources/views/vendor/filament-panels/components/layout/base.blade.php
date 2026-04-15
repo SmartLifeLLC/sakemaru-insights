@@ -127,7 +127,7 @@
                 ])
         }}
         x-data
-        :class="$store.splitView?.dragging && 'select-none cursor-col-resize'"
+        :class="$store.splitView?.dragging ? 'select-none cursor-col-resize' : ''"
     >
         {{ \Filament\Support\Facades\FilamentView::renderHook(\Filament\View\PanelsRenderHook::BODY_START, scopes: $renderHookScopes) }}
 

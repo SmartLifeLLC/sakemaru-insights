@@ -99,18 +99,19 @@
         >
             {{-- Split View コンテナ --}}
             <div x-data class="flex flex-1 overflow-hidden"
-                 @mousemove.window="if($store.splitView.dragging) {
+                 @mousemove.window="if($store.splitView?.dragging) {
                      const rect = $el.getBoundingClientRect();
                      $store.splitView.ratio = Math.max(20, Math.min(80,
                          ((event.clientX - rect.left) / rect.width) * 100
                      ));
                  }"
-                 @mouseup.window="$store.splitView.dragging = false">
+                 @mouseup.window="if($store.splitView) $store.splitView.dragging = false">
 
                 {{-- 左パネル: 既存コンテンツ --}}
-                <div x-show="!$store.splitView.isOpen || $store.splitView.ratio > 0"
-                     :style="$store.splitView.isOpen ? 'width:' + $store.splitView.ratio + '%' : 'width:100%'"
-                     :class="$store.splitView.dragging ? '' : 'transition-[width] duration-200'"
+                <div x-show="!$store.splitView?.isOpen || $store.splitView?.ratio > 0"
+                     :style="$store.splitView?.isOpen ? 'width:' + $store.splitView.ratio + '%' : 'width:100%'"
+                     :class="$store.splitView?.dragging ? '' : 'transition-[width] duration-200'"
+                     style="width: 100%"
                      class="flex flex-col min-w-0 overflow-y-auto">
 
                     {{ \Filament\Support\Facades\FilamentView::renderHook(\Filament\View\PanelsRenderHook::CONTENT_BEFORE, scopes: $renderHookScopes) }}
