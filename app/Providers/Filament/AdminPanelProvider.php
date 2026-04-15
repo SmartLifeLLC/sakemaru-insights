@@ -64,7 +64,10 @@ class AdminPanelProvider extends PanelProvider
             ->plugins([
                 StickyTableHeaderPlugin::make(),
                 AdvancedTablesPlugin::make()
-                    ->userViewsEnabled(true)
+                    ->userViewsEnabled(false)
+                    ->globalUserViewsManageable(false)
+                    ->viewManagerEnabled(false)
+                    ->resourceEnabled(false)
                     ->userView(\App\Models\FilamentFilterSets\UserView::class)
                     ->managedUserView(\App\Models\FilamentFilterSets\ManagedUserView::class)
                     ->managedPresetView(\App\Models\FilamentFilterSets\ManagedPresetView::class)

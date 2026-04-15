@@ -1,479 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@400;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap');
 @import '../../../../vendor/filament/filament/resources/css/theme.css';
 
 @source '../../../../app/Filament/**/*.php';
-@source '../../../../resources/views/filament/**/*.blade.php';
-@source '../../../../resources/views/livewire/**/*.blade.php';
-@source '../../../../resources/views/components/**/*.blade.php';
-@source inline("select-none cursor-col-resize pointer-events-none");
+@source '../../../../app/Livewire/**/*.php';
+@source '../../../../resources/views/**/*.blade.php';
 @source '../../../../vendor/archilex/filament-filter-sets/**/*.php';
 @source '../../../../vendor/archilex/filament-filter-sets/**/*.blade.php';
-
-/* ============================
-   酒丸算盤 — Washi & Sumi Design System
-   ============================ */
-:root {
-    --sm-bg-page: #f7f4ed;
-    --sm-bg-card: #fefcf6;
-    --sm-bg-card-alt: #faf8f2;
-    --sm-border: #e6ddd0;
-    --sm-border-light: #ede7db;
-    --sm-text-heading: #1c1917;
-    --sm-text-body: #3f3930;
-    --sm-text-muted: #9c9487;
-    --sm-accent-bengara: #8b3a2f;
-    --sm-accent-bengara-light: #f3e8e6;
-    --sm-accent-gold: #b8860b;
-    --sm-accent-gold-light: #fdf6e3;
-    --sm-accent-navy: #2c4a6e;
-    --sm-accent-navy-light: #e8eef5;
-    --sm-accent-matsu: #2d6a4f;
-    --sm-accent-matsu-light: #e8f5ed;
-    --sm-accent-fuji: #6b5b8a;
-    --sm-accent-fuji-light: #f0ecf5;
-    --sm-stripe-odd: rgba(184, 134, 11, 0.04);
-    --sm-stripe-even: #fefcf6;
-    --sm-font-heading: 'Shippori Mincho B1', 'Noto Serif JP', serif;
-    --sm-font-body: 'Zen Kaku Gothic New', 'Noto Sans JP', sans-serif;
-}
-
-/* Global font override for insights pages */
-.fi-body {
-    font-family: var(--sm-font-body) !important;
-    background-color: var(--sm-bg-page) !important;
-}
-.fi-main {
-    background-color: transparent !important;
-}
-.fi-sidebar {
-    background-color: var(--sm-bg-card) !important;
-    border-color: var(--sm-border) !important;
-}
-
-/* Insights page headings use serif font */
-.fi-header-heading {
-    font-family: var(--sm-font-heading) !important;
-    color: var(--sm-text-heading) !important;
-    letter-spacing: 0.02em;
-}
-
-/* ============================
-   トップバー高さ縮小
-   ============================ */
-.fi-topbar {
-    height: 2.5rem !important;
-    min-height: 2.5rem !important;
-}
-.fi-topbar > nav {
-    height: 2.5rem !important;
-    min-height: 2.5rem !important;
-}
-.fi-topbar-item {
-    padding-top: 0.25rem !important;
-    padding-bottom: 0.25rem !important;
-}
-.fi-topbar .fi-brand, .fi-topbar a, .fi-topbar span, .fi-topbar button {
-    font-size: 0.75rem !important;
-    line-height: 1rem !important;
-}
-.fi-topbar svg {
-    width: 1rem !important;
-    height: 1rem !important;
-}
-
-/* ============================
-   コンパクトテーブル（行の余白削減）
-   ============================ */
-@layer components {
-    .fi-main { @apply max-w-none; overflow: visible !important; }
-    .fi-layout { overflow: visible !important; }
-    .fi-header { @apply pt-1 pb-0 my-0; }
-    .fi-header-heading { @apply text-base leading-tight; }
-    .fi-header-subheading { @apply text-xs leading-tight mt-0; }
-    .fi-header-actions-ctn { @apply gap-1; }
-    .fi-page-main { @apply py-0 my-0 -mt-1; }
-    .fi-page { @apply pt-0; }
-    .fi-ta { @apply mt-0; }
-
-    .fi-ta-row {
-        @apply divide-x divide-gray-200 dark:divide-white/5;
-        min-height: 0 !important;
-        height: auto !important;
-    }
-    .fi-ta-text, .fi-ta-text-item, .fi-ta-text-has-badges {
-        padding-top: 0 !important;
-        padding-bottom: 0 !important;
-    }
-    .fi-size-sm {
-        @apply py-0 my-0;
-        height: auto !important;
-        min-height: auto !important;
-        line-height: 1.2 !important;
-    }
-    .fi-ta-table > thead > tr {
-        @apply divide-x divide-gray-200 dark:divide-white/5;
-    }
-}
-
-/* テーブルフォント縮小（情報密度向上） */
-.fi-ta-text, .fi-ta-text-item {
-    font-size: 0.7rem !important;
-    line-height: 1.1 !important;
-}
-.fi-ta-header-cell {
-    font-size: 0.65rem !important;
-}
-
-/* セル余白統一 */
-.fi-ta-cell {
-    padding: 5px 2px !important;
-    margin: 0 !important;
-    min-height: 0 !important;
-    height: auto !important;
-}
-/* セル内部要素: 上下5px確保（td > a.fi-ta-col > div構造に対応） */
-.fi-ta-cell > div,
-.fi-ta-text {
-    padding-top: 5px !important;
-    padding-bottom: 5px !important;
-    margin-top: 0 !important;
-    margin-bottom: 0 !important;
-    min-height: 0 !important;
-}
-.fi-input,
-.fi-select-input {
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
-    margin-top: 0 !important;
-    margin-bottom: 0 !important;
-    min-height: 0 !important;
-}
-.fi-ta-text, .fi-ta-text-item {
-    padding: 1px 2px !important;
-    margin: 1px 2px !important;
-}
-
-/* stripe色カスタマイズ（和紙トーン） */
-.fi-ta-table tbody tr:nth-child(odd) {
-    background-color: var(--sm-stripe-odd) !important;
-}
-.fi-ta-table tbody tr:nth-child(even) {
-    background-color: var(--sm-stripe-even) !important;
-}
-.dark .fi-ta-table tbody tr:nth-child(odd) {
-    background-color: rgba(184, 134, 11, 0.08) !important;
-}
-.dark .fi-ta-table tbody tr:nth-child(even) {
-    background-color: rgb(17, 24, 39) !important;
-}
-
-/* fi-ta-icon compact */
-.fi-ta-icon {
-    padding: 1px 2px !important;
-    margin: 0 !important;
-}
-
-.fi-ta-icon svg {
-    width: 16px !important;
-    height: 16px !important;
-}
-
-.fi-ta-cell:has(.fi-ta-icon) {
-    padding: 1px 2px !important;
-}
-
-.fi-ta-cell:has(.fi-ta-icon) > div {
-    padding: 0 !important;
-    margin: 0 !important;
-}
-
-/* TextInputColumn sizing */
-
-/* TextInputColumn のラッパー */
-.fi-ta-text-input,
-.fi-ta-text-input .fi-input {
-    padding: 1px !important;
-    margin: 1px 2px !important;
-    min-height: 0 !important;
-}
-
-/* input 要素 */
-.fi-input input {
-    height: 24px !important;
-    line-height: 24px !important;
-    padding: 1px 2px !important;
-    margin: 1px 2px !important;
-}
-
-/* 数値入力列の固定幅 */
-.fi-ta-cell:has(.fi-ta-text-input) {
-    width: 70px !important;
-    max-width: 70px !important;
-    min-width: 70px !important;
-}
-
-.fi-ta-text-input {
-    width: 70px !important;
-    max-width: 70px !important;
-}
-
-.fi-ta-text-input .fi-input-wrp {
-    width: 65px !important;
-    max-width: 65px !important;
-}
-
-.fi-ta-text-input input[type="number"] {
-    width: 60px !important;
-    max-width: 60px !important;
-    text-align: right !important;
-}
-
-/* ============================
-   Insights カードコンポーネント
-   ============================ */
-.ins-card {
-    background-color: var(--sm-bg-card);
-    border: 1px solid var(--sm-border);
-    border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(28, 25, 23, 0.04), 0 1px 2px rgba(28, 25, 23, 0.02);
-    transition: box-shadow 0.2s ease, transform 0.2s ease;
-}
-.ins-card:hover {
-    box-shadow: 0 4px 12px rgba(28, 25, 23, 0.06), 0 2px 4px rgba(28, 25, 23, 0.03);
-}
-
-/* KPI Card with left accent */
-.ins-kpi {
-    position: relative;
-    padding: 1.25rem 1.5rem;
-    border-left: 4px solid transparent;
-    overflow: hidden;
-}
-.ins-kpi::after {
-    content: '';
-    position: absolute;
-    top: -20px;
-    right: -20px;
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    opacity: 0.04;
-    pointer-events: none;
-}
-.ins-kpi--sales { border-left-color: var(--sm-accent-navy); }
-.ins-kpi--sales::after { background-color: var(--sm-accent-navy); }
-.ins-kpi--customers { border-left-color: var(--sm-accent-bengara); }
-.ins-kpi--customers::after { background-color: var(--sm-accent-bengara); }
-.ins-kpi--price { border-left-color: var(--sm-accent-fuji); }
-.ins-kpi--price::after { background-color: var(--sm-accent-fuji); }
-.ins-kpi--profit { border-left-color: var(--sm-accent-gold); }
-.ins-kpi--profit::after { background-color: var(--sm-accent-gold); }
-.ins-kpi--matsu { border-left-color: var(--sm-accent-matsu); }
-.ins-kpi--matsu::after { background-color: var(--sm-accent-matsu); }
-
-.ins-kpi__label {
-    font-family: var(--sm-font-body);
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: var(--sm-text-muted);
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-}
-.ins-kpi__value {
-    font-family: var(--sm-font-heading);
-    font-size: 1.75rem;
-    font-weight: 700;
-    color: var(--sm-text-heading);
-    line-height: 1.2;
-    margin-top: 0.375rem;
-    letter-spacing: -0.01em;
-}
-.ins-kpi__sub {
-    font-size: 0.7rem;
-    font-weight: 500;
-    margin-top: 0.25rem;
-}
-
-/* Section headers */
-.ins-section-header {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 1rem 1.25rem;
-    border-bottom: 1px solid var(--sm-border-light);
-}
-.ins-section-header::before {
-    content: '';
-    width: 3px;
-    height: 1.25rem;
-    background: linear-gradient(180deg, var(--sm-accent-bengara), var(--sm-accent-gold));
-    border-radius: 2px;
-    flex-shrink: 0;
-}
-.ins-section-title {
-    font-family: var(--sm-font-heading);
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: var(--sm-text-heading);
-    letter-spacing: 0.03em;
-}
-
-/* Chart container */
-.ins-chart-wrap {
-    background-color: var(--sm-bg-card);
-    border: 1px solid var(--sm-border);
-    border-radius: 12px;
-    box-shadow: 0 1px 3px rgba(28, 25, 23, 0.04);
-    padding: 1.5rem;
-}
-.ins-chart-title {
-    font-family: var(--sm-font-heading);
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: var(--sm-text-heading);
-    margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--sm-border-light);
-    letter-spacing: 0.03em;
-}
-
-/* Insights custom table */
-.ins-table {
-    width: 100%;
-    font-size: 0.8rem;
-    font-family: var(--sm-font-body);
-}
-.ins-table thead tr {
-    border-bottom: 2px solid var(--sm-border);
-}
-.ins-table th {
-    padding: 0.5rem 0.75rem;
-    font-size: 0.7rem;
-    font-weight: 600;
-    color: var(--sm-text-muted);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-}
-.ins-table td {
-    padding: 0.5rem 0.75rem;
-    color: var(--sm-text-body);
-}
-.ins-table tbody tr {
-    border-bottom: 1px solid var(--sm-border-light);
-    transition: background-color 0.15s ease;
-}
-.ins-table tbody tr:nth-child(odd) {
-    background-color: var(--sm-stripe-odd);
-}
-.ins-table tbody tr:hover {
-    background-color: rgba(139, 58, 47, 0.04) !important;
-}
-
-/* Category badge */
-.ins-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.125rem 0.5rem;
-    border-radius: 999px;
-    font-size: 0.65rem;
-    font-weight: 600;
-    background: var(--sm-accent-bengara-light);
-    color: var(--sm-accent-bengara);
-    letter-spacing: 0.02em;
-}
-
-/* Date input styling */
-.ins-date-input {
-    font-family: var(--sm-font-body);
-    background-color: var(--sm-bg-card);
-    border: 1px solid var(--sm-border);
-    border-radius: 8px;
-    padding: 0.375rem 0.75rem;
-    font-size: 0.8rem;
-    color: var(--sm-text-body);
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
-.ins-date-input:focus {
-    border-color: var(--sm-accent-bengara);
-    box-shadow: 0 0 0 3px rgba(139, 58, 47, 0.1);
-    outline: none;
-}
-
-/* Print button */
-.ins-btn {
-    font-family: var(--sm-font-body);
-    display: inline-flex;
-    align-items: center;
-    gap: 0.375rem;
-    padding: 0.375rem 1rem;
-    border-radius: 8px;
-    font-size: 0.8rem;
-    font-weight: 500;
-    border: 1px solid var(--sm-border);
-    background-color: var(--sm-bg-card);
-    color: var(--sm-text-body);
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-.ins-btn:hover {
-    background-color: var(--sm-accent-bengara-light);
-    border-color: var(--sm-accent-bengara);
-    color: var(--sm-accent-bengara);
-}
-
-/* Subtle page background texture */
-.ins-page {
-    position: relative;
-}
-.ins-page::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23a89880' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-    pointer-events: none;
-    z-index: 0;
-}
-
-/* ============================
-   アクションカラム右固定 (sticky-actions)
-   ============================ */
-.sticky-actions { position: relative; }
-.sticky-actions .fi-ta-table { overflow-x: auto; }
-
-.sticky-actions .fi-ta-row td:last-child,
-.sticky-actions .fi-ta-actions-cell {
-    position: sticky !important;
-    right: 0 !important;
-    z-index: 10 !important;
-    box-shadow: -2px 0 4px rgba(0, 0, 0, 0.1) !important;
-}
-.sticky-actions .fi-ta-header-cell:last-child {
-    position: sticky !important;
-    right: 0 !important;
-    background-color: rgb(249, 250, 251) !important;
-    z-index: 11 !important;
-    box-shadow: -2px 0 4px rgba(0, 0, 0, 0.1) !important;
-}
-.dark .sticky-actions .fi-ta-header-cell:last-child {
-    background-color: rgb(31, 41, 55) !important;
-}
-
-/* sticky-actions の stripe背景（不透明色で文字の透け防止） */
-.sticky-actions .fi-ta-table tbody tr:nth-child(odd) td:last-child {
-    background-color: #f5f9ff !important;
-}
-.sticky-actions .fi-ta-table tbody tr:nth-child(even) td:last-child {
-    background-color: #ffffff !important;
-}
-.dark .sticky-actions .fi-ta-table tbody tr:nth-child(odd) td:last-child {
-    background-color: #1e2a3b !important;
-}
-.dark .sticky-actions .fi-ta-table tbody tr:nth-child(even) td:last-child {
-    background-color: #111827 !important;
-}
+@source inline("select-none cursor-col-resize pointer-events-none");
 
 /* ページスクロールバー最適化 */
 html.fi {
@@ -501,32 +33,48 @@ html.fi {
     padding-bottom: 0 !important;
 }
 
-/* --- 共通モーダルスタイル（incoming-detail-modal） ---
- * 仕様: ~/.claude/design-knowledge/modal-design.md
- * ヘッダー紺色 #1e293b / 白文字 / フッター右寄せ
- */
-.incoming-detail-modal .fi-modal-header {
-    background-color: #1e293b !important;
-    border-radius: 0.75rem 0.75rem 0 0;
-    padding: 0.75rem 1rem;
+/* レイアウト幅 */
+.fi-main {
+    max-width: none !important;
+    overflow: visible !important;
 }
-.incoming-detail-modal .fi-modal-header .fi-modal-heading {
-    color: #ffffff !important;
+
+.fi-layout {
+    overflow: visible !important;
 }
-.incoming-detail-modal .fi-modal-header .fi-modal-description {
-    color: #94a3b8 !important;
+
+.fi-sidebar + .fi-main,
+.fi-topbar + .fi-main {
+    max-width: none !important;
 }
-.incoming-detail-modal .fi-modal-header .fi-modal-close-btn {
-    color: #ffffff !important;
+
+/* 行コンパクト化 */
+.fi-ta-row {
+    @apply divide-x divide-gray-200 dark:divide-white/5;
+    min-height: 0 !important;
+    height: auto !important;
 }
-.incoming-detail-modal .fi-modal-header .fi-modal-close-btn:hover {
-    color: #cbd5e1 !important;
+
+.fi-size-sm {
+    @apply py-0 my-0;
+    height: auto !important;
+    min-height: auto !important;
+    line-height: 1.2 !important;
 }
-.incoming-detail-modal .fi-modal-footer {
-    justify-content: flex-end !important;
+
+.fi-ta-text-item.fi-size-sm {
+    padding: 0 !important;
 }
-.incoming-detail-modal .fi-modal-footer > * {
-    justify-content: flex-end !important;
+
+.fi-section-header-heading {
+    font-size: 1rem !important;
+    font-weight: 500 !important;
+}
+
+.fi-section-header {
+    padding-top: 0.25rem !important;
+    padding-bottom: 0 !important;
+    margin-top: 0.25rem !important;
 }
 
 /* --- ページヘッダー・余白コンパクト化 --- */
@@ -577,14 +125,28 @@ html.fi {
 .fi-page-content {
     padding-top: 0.5rem !important;
     padding-bottom: 0 !important;
+    gap: 0 !important;
 }
 
 .fi-page > .fi-page-content {
     margin-top: 0 !important;
 }
 
-.fi-page-content > .grid {
-    gap: 0.25rem !important;
+/* ページコンテンツグリッドのギャップ */
+.fi-page-content > .grid,
+.fi-page-content > .fi-grid {
+    gap: 0 !important;
+}
+
+/* Advanced Tables Github theme: -mb-7 の重なりを緩和 */
+.fi-page-content .flex.-mb-7 {
+    margin-bottom: 0 !important;
+}
+
+/* Advanced Tables Github theme: アクティブタブのアンダーバー修正（Tailwind v4互換） */
+.advanced-tables-fav-bar-item-button::after {
+    content: "" !important;
+    height: 2px !important;
 }
 
 .fi-ta-header-heading {
@@ -598,13 +160,138 @@ html.fi {
     margin-bottom: 0.25rem !important;
 }
 
-/* Advanced Tables Github theme: -mb-7 の重なりを緩和 */
-.fi-page-content .flex.-mb-7 {
-    margin-bottom: -0.5rem !important; /* -mb-2 equivalent */
+/* テーブルコンパクト化 */
+.fi-ta-cell { padding: 5px 10px !important; margin: 0 !important; }
+
+/* セル内部要素: 上下5px確保（td > a.fi-ta-col > div構造に対応） */
+.fi-ta-cell > div,
+.fi-ta-text {
+    padding-top: 5px !important;
+    padding-bottom: 5px !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    min-height: 0 !important;
+}
+.fi-input,
+.fi-select-input {
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    min-height: 0 !important;
 }
 
-/* Advanced Tables Github theme: アクティブタブのアンダーバー修正（Tailwind v4互換） */
-.advanced-tables-fav-bar-item-button::after {
-    content: "" !important;
-    height: 2px !important;
+/* fi-ta-icon コンパクト */
+.fi-ta-icon {
+    padding: 1px 2px !important;
+    margin: 0 !important;
+}
+
+.fi-ta-icon svg {
+    width: 16px !important;
+    height: 16px !important;
+}
+
+.fi-ta-cell:has(.fi-ta-icon) {
+    padding: 1px 2px !important;
+}
+
+.fi-ta-cell:has(.fi-ta-icon) > div {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* TextInputColumn sizing */
+.fi-ta-text-input,
+.fi-ta-text-input .fi-input {
+    padding: 1px !important;
+    margin: 1px 2px !important;
+    min-height: 0 !important;
+}
+
+.fi-input input {
+    height: 24px !important;
+    line-height: 24px !important;
+    padding: 1px 2px !important;
+    margin: 1px 2px !important;
+}
+
+.fi-ta-cell:has(.fi-ta-text-input) {
+    width: 70px !important;
+    max-width: 70px !important;
+    min-width: 70px !important;
+}
+
+.fi-ta-text-input {
+    width: 70px !important;
+    max-width: 70px !important;
+}
+
+.fi-ta-text-input .fi-input-wrp {
+    width: 65px !important;
+    max-width: 65px !important;
+}
+
+.fi-ta-text-input input[type="number"] {
+    width: 60px !important;
+    max-width: 60px !important;
+    text-align: right !important;
+}
+
+/* ストライプカラー */
+.fi-ta-table tbody tr:nth-child(odd) { background-color: rgba(59, 130, 246, 0.05) !important; }
+.fi-ta-table tbody tr:nth-child(even) { background-color: white !important; }
+.dark .fi-ta-table tbody tr:nth-child(odd) { background-color: rgba(59, 130, 246, 0.12) !important; }
+.dark .fi-ta-table tbody tr:nth-child(even) { background-color: rgb(17, 24, 39) !important; }
+
+/* スティッキーアクション */
+.sticky-actions .fi-ta-actions-cell,
+.sticky-actions .fi-ta-header-cell:last-child {
+    position: sticky;
+    right: 0;
+    z-index: 10;
+    box-shadow: -2px 0 4px rgba(0, 0, 0, 0.1);
+}
+.sticky-actions .fi-ta-table tbody tr:nth-child(odd) td:last-child { background-color: #f5f9ff !important; }
+.sticky-actions .fi-ta-table tbody tr:nth-child(even) td:last-child { background-color: #ffffff !important; }
+.dark .sticky-actions .fi-ta-table tbody tr:nth-child(odd) td:last-child { background-color: #1e2a3b !important; }
+.dark .sticky-actions .fi-ta-table tbody tr:nth-child(even) td:last-child { background-color: #111827 !important; }
+
+/* トップバー高さ削減 */
+.fi-topbar { height: 2.5rem !important; min-height: 2.5rem !important; }
+.fi-topbar > nav { height: 2.5rem !important; min-height: 2.5rem !important; }
+.fi-topbar .fi-brand,
+.fi-topbar a,
+.fi-topbar span,
+.fi-topbar button {
+    font-size: 0.75rem !important;
+    line-height: 1rem !important;
+}
+
+/* --- 共通モーダルスタイル（incoming-detail-modal） ---
+ * 仕様: ~/.claude/design-knowledge/modal-design.md
+ * ヘッダー紺色 #1e293b / 白文字 / フッター右寄せ
+ */
+.incoming-detail-modal .fi-modal-header {
+    background-color: #1e293b !important;
+    border-radius: 0.75rem 0.75rem 0 0;
+    padding: 0.75rem 1rem;
+}
+.incoming-detail-modal .fi-modal-header .fi-modal-heading {
+    color: #ffffff !important;
+}
+.incoming-detail-modal .fi-modal-header .fi-modal-description {
+    color: #94a3b8 !important;
+}
+.incoming-detail-modal .fi-modal-header .fi-modal-close-btn {
+    color: #ffffff !important;
+}
+.incoming-detail-modal .fi-modal-header .fi-modal-close-btn:hover {
+    color: #cbd5e1 !important;
+}
+.incoming-detail-modal .fi-modal-footer {
+    justify-content: flex-end !important;
+}
+.incoming-detail-modal .fi-modal-footer > * {
+    justify-content: flex-end !important;
 }

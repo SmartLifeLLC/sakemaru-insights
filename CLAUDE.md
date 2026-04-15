@@ -28,13 +28,18 @@ php artisan db:wipe            # 禁止
    - ヘッダー `bg-slate-800`、高さ 2.5rem、z-[35]
    - 動的カラムレイアウト（1〜3列）、Split View 連携
 
-3. **テーブルタブ表示仕様**: `~/.claude/design-knowledge/table-tabs.md`
-   - getTabs() / PresetView の2パターン
+3. **テーブルタブ表示仕様**: `~/.claude/design-knowledge/table-tabs.md`（プロジェクト横断共通）
+   - 4パターン: getTabs() / PresetView / Form Schema Tabs / Sub-Navigation Tabs
+   - パターン選択ガイド・実装例・動的タブ生成・キャッシュ戦略
    - テーブル固定高さ + 内部スクロール + sticky thead
 
 4. **ページスクロール制御仕様**: `~/.claude/design-knowledge/page-scroll-control.md`
    - HTML overflow 制御、sticky カラム（右固定/左固定）
    - Split View（左右分割パネル + ドラッグリサイズ）
+
+5. **テーブルコンパクトデザイン仕様**: `~/.claude/design-knowledge/table-compact-design.md`（プロジェクト横断共通）
+   - 行コンパクト化、ページヘッダー余白、sticky-actions右固定、ストライプ行
+   - TextInputColumn幅固定、トップバー高さ調整
 
 ### Filament 4 の注意事項
 
