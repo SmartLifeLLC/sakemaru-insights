@@ -72,8 +72,8 @@
                 style="top: 40px; font-family: ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';"
                 x-cloak
             >
-                <div class="w-full px-16 py-6">
-                    <div class="flex flex-wrap gap-12 justify-start">
+                <div class="w-full px-4 py-3 overflow-x-auto">
+                    <div class="flex gap-6 justify-start">
                         @foreach($tab['groups'] as $index => $group)
                             @php
                                 $itemCount = count($group['items']);
@@ -82,55 +82,51 @@
                                     $itemCount >= 5 => 2,
                                     default => 1,
                                 };
-                                $minWidth = match($columns) {
-                                    3 => 'min-w-[600px]',
-                                    default => 'min-w-[400px]',
-                                };
                             @endphp
-                            <div class="flex gap-12">
+                            <div class="flex gap-6 flex-shrink-0">
                                 @if($index > 0)
                                     <div class="w-px bg-slate-200 self-stretch"></div>
                                 @endif
-                                <div class="{{ $minWidth }}">
-                                <div class="flex flex-col gap-3">
+                                <div>
+                                <div class="flex flex-col gap-1">
                                     <!-- Group Header -->
-                                    <div class="flex items-center gap-2 pb-2 border-b border-slate-100">
+                                    <div class="flex items-center gap-1.5 pb-1.5 border-b border-slate-100">
                                         @if(isset($group['icon']) && $group['icon'])
                                             <x-filament::icon
                                                 :icon="$group['icon']"
-                                                class="w-5 h-5 text-indigo-600"
+                                                class="w-4 h-4 text-indigo-600 hidden xl:block"
                                             />
                                         @endif
-                                        <h3 class="font-bold text-slate-800 text-sm">{{ $group['label'] }}</h3>
+                                        <h3 class="font-bold text-slate-800 text-xs">{{ $group['label'] }}</h3>
                                     </div>
 
                                     <!-- Menu Items -->
-                                    <ul class="@if($columns === 3) grid grid-cols-3 gap-1 @elseif($columns === 2) grid grid-cols-2 gap-1 @else flex flex-col gap-1 @endif">
+                                    <ul class="@if($columns === 3) grid grid-cols-3 gap-0.5 @elseif($columns === 2) grid grid-cols-2 gap-0.5 @else flex flex-col gap-0.5 @endif">
                                         @foreach($group['items'] as $item)
                                             <li>
                                                 <a href="{{ $item['url'] }}"
                                                    @if(!empty($item['openInSplitView']))
                                                        @click.prevent="$store.splitView.open('{{ $item['url'] }}', '{{ $item['label'] }}', '{{ $group['label'] }}'); openTab = null"
                                                    @endif
-                                                   class="group flex items-center gap-3 p-2 rounded-lg transition-all duration-150 hover:bg-indigo-100 {{ $item['isActive'] ? 'bg-indigo-50' : '' }}">
-                                                    <div class="flex-shrink-0 p-1.5 rounded-md bg-white border border-slate-200 text-slate-500 transition-colors shadow-sm group-hover:bg-indigo-600 group-hover:border-indigo-600 group-hover:text-white {{ $item['isActive'] ? 'text-indigo-600 border-indigo-200' : '' }}">
+                                                   class="group flex items-center gap-1.5 px-1.5 py-0.5 rounded transition-all duration-150 hover:bg-indigo-100 {{ $item['isActive'] ? 'bg-indigo-50' : '' }}">
+                                                    <div class="flex flex-shrink-0 p-1 rounded bg-white border border-slate-200 text-slate-500 transition-colors shadow-sm group-hover:bg-indigo-600 group-hover:border-indigo-600 group-hover:text-white {{ $item['isActive'] ? 'text-indigo-600 border-indigo-200' : '' }}">
                                                         @if(!empty($item['openInSplitView']))
-                                                            <i class="fa-solid fa-table-columns w-4 h-4 flex items-center justify-center text-[12px]"></i>
+                                                            <i class="fa-solid fa-table-columns w-3.5 h-3.5 flex items-center justify-center text-[10px]"></i>
                                                         @elseif(isset($item['icon']) && $item['icon'])
                                                             <x-filament::icon
                                                                 :icon="$item['icon']"
-                                                                class="w-4 h-4"
+                                                                class="w-3.5 h-3.5"
                                                             />
                                                         @else
-                                                            <i class="fa-solid fa-circle text-[6px] w-4 h-4 flex items-center justify-center"></i>
+                                                            <i class="fa-solid fa-circle text-[5px] w-3.5 h-3.5 flex items-center justify-center"></i>
                                                         @endif
                                                     </div>
                                                     <div class="flex flex-col">
-                                                        <span class="text-xs font-medium text-slate-700 transition-colors group-hover:text-indigo-700 group-hover:font-semibold {{ $item['isActive'] ? 'text-indigo-700 font-semibold' : '' }}">
+                                                        <span class="text-xs font-medium text-slate-700 whitespace-nowrap transition-colors group-hover:text-indigo-700 group-hover:font-semibold {{ $item['isActive'] ? 'text-indigo-700 font-semibold' : '' }}">
                                                             {{ $item['label'] }}
                                                         </span>
                                                         @if(!empty($item['desc']))
-                                                            <span class="text-xs text-slate-400">{{ $item['desc'] }}</span>
+                                                            <span class="text-[10px] text-slate-400">{{ $item['desc'] }}</span>
                                                         @endif
                                                     </div>
                                                 </a>
