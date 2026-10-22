@@ -2,6 +2,8 @@
 """
 Main ETL script: ret_ -> ins_ retail statistics generation.
 
+Aggregation is suspended. All CLI modes exit without loading DB configuration.
+
 Usage:
     python generate_retail_stats.py --mode=daily [--date=YYYY-MM-DD]
     python generate_retail_stats.py --mode=realtime
@@ -23,6 +25,13 @@ from decimal import Decimal
 
 # Add scripts/etl to path for config import
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from etl.aggregation import AGGREGATION_DISABLED_MESSAGE, AGGREGATION_ENABLED
+
+# Stop direct/manual invocations before loading .env or third-party dependencies.
+if __name__ == "__main__" and not AGGREGATION_ENABLED:
+    print(AGGREGATION_DISABLED_MESSAGE)
+    sys.exit(0)
 
 from config import DB_URL
 from sqlalchemy import create_engine, text
@@ -180,6 +189,10 @@ def process_date_range(
     mode: str,
 ) -> dict:
     """Process ETL for a date range. Returns stats dict."""
+    if not AGGREGATION_ENABLED:
+        logger.warning(AGGREGATION_DISABLED_MESSAGE)
+        return {}
+
     stats = {}
     t0 = time.time()
 
@@ -264,6 +277,10 @@ def process_date_range(
 
 def run_full_in_chunks(engine, start_date: date, end_date: date, chunk_days: int = 30):
     """Run full mode by processing in monthly chunks to avoid memory issues."""
+    if not AGGREGATION_ENABLED:
+        logger.warning(AGGREGATION_DISABLED_MESSAGE)
+        return {}
+
     all_stats = {}
     current = start_date
 
@@ -281,6 +298,10 @@ def run_full_in_chunks(engine, start_date: date, end_date: date, chunk_days: int
 
 
 def main():
+    if not AGGREGATION_ENABLED:
+        logger.warning(AGGREGATION_DISABLED_MESSAGE)
+        return 0
+
     parser = argparse.ArgumentParser(description="Generate retail statistics (ret_ -> ins_)")
     parser.add_argument("--mode", choices=["daily", "realtime", "full"], default="daily",
                         help="Processing mode (default: daily)")
