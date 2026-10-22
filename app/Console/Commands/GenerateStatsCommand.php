@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\Process;
 
 class GenerateStatsCommand extends Command
 {
+    // Resume only through a reviewed code change, not an environment override.
+    private const AGGREGATION_ENABLED = false;
+
     protected $signature = 'insights:generate-stats
         {--mode=daily : Processing mode (daily, realtime, full)}
         {--date= : Target date for daily mode (YYYY-MM-DD)}
@@ -15,10 +18,16 @@ class GenerateStatsCommand extends Command
         {--end= : End date for full mode (YYYY-MM-DD)}
         {--skip-verify : Skip checksum verification}';
 
-    protected $description = 'Generate retail statistics by running the Python ETL pipeline (ret_ -> ins_)';
+    protected $description = 'Retail statistics aggregation is currently disabled (ret_ -> ins_)';
 
     public function handle(): int
     {
+        if (! self::AGGREGATION_ENABLED) {
+            $this->warn('Insights aggregation is disabled; no statistics were generated.');
+
+            return Command::SUCCESS;
+        }
+
         $mode = $this->option('mode');
         $this->info("Starting ETL: mode={$mode}");
 
