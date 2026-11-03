@@ -214,4 +214,18 @@ class DispatchAndPagingTest extends MonitoringTestCase
         $this->assertCount(0, $svc->page(['tab' => 'resolved'], null, 10)->items);
         $this->assertCount(1, $svc->page(['tab' => 'all', 'search' => 'MON-000002'], null, 10)->items);
     }
+
+    /** 華 本番の初回リリースで、未送信通知が 5 分を超えたときに monitor.notification が enum→文字列変換の例外で UNKNOWN になった回帰テスト。 */
+    public function test_notification_backlog_check_reports_stale_without_exception(): void
+    {
+        app(ObservationIngestor::class)->ingestInternal([$this->event()]);
+        $i = Incident::sole();
+        Notification::query()->delete();
+        Notification::query()->create(['incident_id' => $i->id, 'generation' => 1, 'notification_key' => 'old', 'kind' => 'NEW', 'route_key' => 'error_channel', 'severity' => 'ERROR', 'status' => 'RETRY_WAIT', 'last_error_code' => 'http_500', 'available_at' => now('UTC'), 'created_at' => now('UTC')->subMinutes(11)]);
+        $check = new \App\Monitoring\Checks\Monitor\NotificationBacklogCheck;
+        $r = $check->evaluate(new \App\Monitoring\Services\CheckContext(\App\Monitoring\Services\SourceReader::fromConfig(), CarbonImmutable::now('UTC'), $check->definition()->defaultConfig));
+        $stale = collect($r->observations)->first(fn ($o) => $o->scope === ['queue' => 'pending']);
+        $this->assertSame('VIOLATION', $stale->outcome->value);
+        $this->assertStringContainsString('RETRY_WAIT / http_500', $stale->summary);
+    }
 }

@@ -35,7 +35,7 @@ class IntageSendCheck extends TradeCheck
         foreach ($runs as $r) {
             $by[$r->status] = (int) $r->c;
         }
-        if (($by['SUCCESS'] ?? 0) > 0) {
+        if (self::completedCount($by) > 0) {
             return CheckResult::single(Observation::healthy("インテージ送信（対象 {$target}）は完了。", $scope, $target, $by));
         }
 

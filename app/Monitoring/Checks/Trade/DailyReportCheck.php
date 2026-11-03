@@ -38,7 +38,7 @@ class DailyReportCheck extends TradeCheck
         foreach ($runs as $r) {
             $by[$r->status] = (int) $r->c;
         }
-        $done = array_sum(array_intersect_key($by, ['SUCCESS' => 1, 'COMPLETED' => 1, 'DONE' => 1])) > 0;
+        $done = self::completedCount($by) > 0;
         if ($done) {
             return CheckResult::single(Observation::healthy("日報処理（対象 {$businessDate}）は完了。", $scope, $businessDate, $by));
         }

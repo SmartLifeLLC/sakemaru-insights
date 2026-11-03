@@ -35,7 +35,7 @@ class ReportMailCheck extends TradeCheck
             foreach ($runs as $r) {
                 $by[$r->status] = (int) $r->c;
             }
-            if (($by['SUCCESS'] ?? 0) > 0) {
+            if (self::completedCount($by) > 0) {
                 $obs[] = Observation::healthy("帳票メール {$s->report_type}/{$s->slot_key}（{$businessDate}）は送信完了。", $scope, $businessDate, $by);
             } else {
                 $obs[] = Observation::violation("帳票メール {$s->report_type}/{$s->slot_key}（{$businessDate}）が予定 {$s->schedule_time}＋{$grace}分までに完了していません（".json_encode($by, JSON_UNESCAPED_UNICODE).'）。', $scope, $businessDate, $by, ['schedule_id' => (int) $s->id], 'REPORT_MAIL_INCOMPLETE');

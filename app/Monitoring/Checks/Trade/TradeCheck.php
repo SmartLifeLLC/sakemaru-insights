@@ -35,6 +35,22 @@ abstract class TradeCheck extends AbstractCheck
         return ['by_status' => $byStatus, 'max_id' => $maxId, 'complete' => ($byStatus['SUCCESS'] ?? 0) > 0 && ! array_diff_key($byStatus, ['SUCCESS' => 1, 'CANCELLED' => 1])];
     }
 
+    /**
+     * 状態別件数のうち「完了」とみなす件数。表記ゆれ（SUCCESS / sent / succeeded / completed …）を大文字小文字を無視して数える。
+     * 本番（華）の実値: ret_report_mail_send_runs / ret_intage_pos_send_runs = sent|failed、ret_company_daily_sales_report_runs = succeeded|running|failed。
+     */
+    public static function completedCount(array $byStatus): int
+    {
+        $n = 0;
+        foreach ($byStatus as $status => $count) {
+            if (in_array(strtolower((string) $status), ['success', 'succeeded', 'sent', 'completed', 'done'], true)) {
+                $n += (int) $count;
+            }
+        }
+
+        return $n;
+    }
+
     protected function nowLocalString(CheckContext $ctx): string
     {
         return $ctx->nowLocal()->format('Y-m-d H:i:s');

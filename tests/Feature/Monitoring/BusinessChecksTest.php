@@ -448,4 +448,29 @@ class BusinessChecksTest extends MonitoringTestCase
         $this->assertSame('RB-17', $i->runbook_key);
         $this->assertSame(1, \App\Models\Monitoring\Notification::query()->where('incident_id', $i->id)->count());
     }
+    // ------------------------------------------------------------------ 乃蓮（本番の状態値は小文字: sent / failed / succeeded）
+
+    /** 華 本番で確認した実値（ret_report_mail_send_runs・ret_intage_pos_send_runs = sent|failed、ret_company_daily_sales_report_runs = succeeded|running|failed）で完了と判定できること。初回リリースで 'SUCCESS' 固定のため誤検知した回帰テスト。 */
+    public function test_trade_status_values_are_matched_case_insensitively(): void
+    {
+        $this->sourceTable('ret_report_mail_schedules', fn ($t) => [$t->id(), $t->string('report_type'), $t->string('slot_key'), $t->string('schedule_time'), $t->integer('business_date_offset')->default(0), $t->boolean('schedule_enabled')->default(1), $t->string('schedule_type')->default('daily'), $t->dateTime('paused_at')->nullable()]);
+        $this->sourceTable('ret_report_mail_send_runs', fn ($t) => [$t->id(), $t->unsignedBigInteger('report_mail_schedule_id'), $t->date('business_date'), $t->string('status')]);
+        $this->sourceInsert('ret_report_mail_schedules', [['report_type' => 'net_sales_flash', 'slot_key' => 'daily_0800', 'schedule_time' => '08:00', 'business_date_offset' => -1]]);
+        $this->sourceInsert('ret_report_mail_send_runs', [['report_mail_schedule_id' => 1, 'business_date' => '2026-11-02', 'status' => 'failed'], ['report_mail_schedule_id' => 1, 'business_date' => '2026-11-02', 'status' => 'sent']]);
+        $this->assertSame('HEALTHY', $this->only($this->exec(new \App\Monitoring\Checks\Trade\ReportMailCheck, '2026-11-03 09:00')), '先行失敗があっても sent があれば完了');
+        $this->assertSame('VIOLATION', $this->only($this->exec(new \App\Monitoring\Checks\Trade\ReportMailCheck, '2026-11-04 09:00')), '翌日分は未送信');
+
+        $this->sourceTable('ret_intage_pos_send_settings', fn ($t) => [$t->id(), $t->boolean('schedule_enabled')->default(1), $t->string('schedule_time'), $t->integer('business_date_offset')->default(-1)]);
+        $this->sourceTable('ret_intage_pos_send_runs', fn ($t) => [$t->id(), $t->date('target_to_date'), $t->string('status')]);
+        $this->sourceInsert('ret_intage_pos_send_settings', [['schedule_time' => '09:30', 'business_date_offset' => -1]]);
+        $this->sourceInsert('ret_intage_pos_send_runs', [['target_to_date' => '2026-11-02', 'status' => 'sent']]);
+        $this->assertSame('HEALTHY', $this->only($this->exec(new \App\Monitoring\Checks\Trade\IntageSendCheck, '2026-11-03 10:30')));
+
+        $this->sourceTable('ret_daily_sales_report_schedules', fn ($t) => [$t->id(), $t->boolean('schedule_enabled')->default(1), $t->string('schedule_type')->default('daily'), $t->string('schedule_time'), $t->dateTime('schedule_last_run_at')->nullable()]);
+        $this->sourceTable('ret_company_daily_sales_report_runs', fn ($t) => [$t->id(), $t->date('business_date'), $t->string('status')]);
+        $this->sourceInsert('ret_daily_sales_report_schedules', [['schedule_time' => '06:00']]);
+        $this->sourceInsert('ret_company_daily_sales_report_runs', [['business_date' => '2026-11-01', 'status' => 'running'], ['business_date' => '2026-11-01', 'status' => 'succeeded']]);
+        $this->assertSame('HEALTHY', $this->only($this->exec(new \App\Monitoring\Checks\Trade\DailyReportCheck, '2026-11-02 08:00')));
+        $this->assertSame(0, \App\Monitoring\Checks\Trade\TradeCheck::completedCount(['failed' => 2, 'running' => 1]));
+    }
 }
