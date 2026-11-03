@@ -65,8 +65,8 @@
             </div>
             <div class="topbar-actions">
                 <a class="search-trigger" href="{{ \App\Filament\Monitor\Pages\Logs::getUrl() }}?focus=1">{!! Icon::svg('search') !!}<span>ログを検索</span><kbd>/</kbd></a>
+                {{-- 通知の状態ボタン: 運用中（緑・押すと一時停止）／停止中（赤・押すと再開） --}}
                 @if ($page->alertPause())
-                    <span class="badge warn" title="{{ $page->alertPause()['reason'] }}">アラート停止中 〜{{ $page->alertPause()['until']->setTimezone('Asia/Tokyo')->format('H:i') }}</span>
                     {{ $page->resumeAlertsAction }}
                 @else
                     {{ $page->pauseAlertsAction }}
@@ -74,7 +74,7 @@
                 <span class="env-badge {{ $s['env_class'] }}" title="1 DB = 1 環境（表示のみ）"><i></i>{{ $s['client'] }} {{ $s['env'] }}</span>
                 <button type="button" class="icon-btn" aria-label="ライト/ダークを切り替え"
                         x-data
-                        x-on:click="(() => { const h = document.documentElement; const t = h.dataset.theme === 'light' ? 'dark' : 'light'; h.dataset.theme = t; h.classList.toggle('dark', t === 'dark'); try { localStorage.setItem('sakemaru-monitor-theme', t); localStorage.setItem('theme', t); } catch (e) {} })()">
+                        x-on:click="(() => { const h = document.documentElement; const t = h.dataset.theme === 'light' ? 'dark' : 'light'; h.dataset.theme = t; h.classList.toggle('dark', t === 'dark'); try { localStorage.setItem('sakemaru-monitor-theme-v2', t); localStorage.setItem('theme', t); } catch (e) {} })()">
                     {!! Icon::svg('sun') !!}
                 </button>
                 <a class="icon-btn {{ $s['unack'] > 0 ? 'notification-btn' : '' }}" href="{{ \App\Filament\Monitor\Pages\Incidents::getUrl(['tab' => 'unacknowledged']) }}" aria-label="未確認のエラー {{ $s['unack'] }} 件">{!! Icon::svg('bell') !!}</a>
@@ -82,7 +82,6 @@
             </div>
         </header>
         <main id="main" tabindex="-1">
-            <div class="breadcrumb"><span>{{ $s['client'] }}</span><span>/</span><span>運用監視</span><span>/</span><span>{{ $s['title'] }}</span></div>
             <div class="heading">
                 <div><h1>{{ $s['title'] }}</h1><p>{{ $s['description'] }}</p></div>
                 <div class="heading-buttons">{{ $buttons }}</div>

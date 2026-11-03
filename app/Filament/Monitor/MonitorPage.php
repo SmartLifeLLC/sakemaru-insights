@@ -218,7 +218,8 @@ abstract class MonitorPage extends Page
 
     public function pauseAlertsAction(): Action
     {
-        return Action::make('pauseAlerts')->label('アラート一時停止')->color('warning')->icon('heroicon-o-pause')
+        // 運用中（緑）。押すと一時停止の確認。停止中は resumeAlertsAction（赤）が代わりに表示される
+        return Action::make('pauseAlerts')->label('通知 運用中')->color('success')->icon('heroicon-o-check-circle')->extraAttributes(['class' => 'alert-state-running', 'title' => '押すと新規アラートを一時停止します'])
             ->modalHeading('新規アラートを一時停止する')
             ->modalDescription('対応中に Slack・メール・電話の通知を止めます。監視・記録・エラー管理は止まりません。通知は保留され、再開後にまとめて送ります（確認・対応中になった案件の電話は送りません）。期限が来ると自動で再開します。')
             ->modalSubmitActionLabel('停止する')->modalCancelActionLabel('停止せず閉じる')->extraModalWindowAttributes(['class' => 'incoming-detail-modal'])
@@ -242,7 +243,10 @@ abstract class MonitorPage extends Page
 
     public function resumeAlertsAction(): Action
     {
-        return Action::make('resumeAlerts')->label('アラート再開')->color('success')->icon('heroicon-o-play')->requiresConfirmation()
+        $p = $this->alertPause();
+        $label = '通知 停止中 〜'.($p ? $p['until']->setTimezone('Asia/Tokyo')->format('H:i') : '');
+
+        return Action::make('resumeAlerts')->label($label)->color('danger')->icon('heroicon-o-pause-circle')->requiresConfirmation()->extraAttributes(['class' => 'alert-state-paused', 'title' => ($p['reason'] ?? '').'（押すと再開）'])
             ->modalHeading('アラートを再開する')->modalDescription('保留中の通知をまとめて送ります。')->modalSubmitActionLabel('再開する')->modalCancelActionLabel('再開せず閉じる')->extraModalWindowAttributes(['class' => 'incoming-detail-modal'])
             ->visible(fn () => $this->can(MonitorAccess::RESPOND) && (bool) $this->alertPause())
             ->action(function () {
