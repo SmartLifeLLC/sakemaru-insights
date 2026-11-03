@@ -7,6 +7,12 @@ use App\Models\Monitoring\Incident;
 use App\Monitoring\Enums\WorkflowStatus;
 use App\Monitoring\Services\IncidentQueryService;
 use App\Monitoring\Services\KeysetPage;
+use Filament\Actions\Action;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Utilities\Get;
+use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Url;
 
 /** エラー管理（v1 11.3 を新テーマへ。V-100）。未確認・重大を専用タブで強調し、行クリックでドロワー（概要・対応状況の変更）。 */
@@ -46,6 +52,9 @@ class Incidents extends MonitorPage
     public ?string $cursor = null;
 
     public ?string $error = null;
+
+    /** 一括対処で選択中のエラー番号（表示中ページの中から） @var array<int,string> */
+    public array $selected = [];
 
     public function mount(): void
     {
@@ -108,6 +117,88 @@ class Incidents extends MonitorPage
     {
         $this->tab = $tab;
         $this->cursor = null;
+        $this->selected = [];
+    }
+
+    /** 表示中ページの全選択 / 解除 */
+    public function toggleSelectAll(): void
+    {
+        $ids = array_map(fn ($i) => $i->public_id, $this->page()?->items ?? []);
+        $this->selected = count(array_intersect($ids, $this->selected)) === count($ids) && $ids !== [] ? [] : $ids;
+    }
+
+    // ------------------------------------------------------------------ 一括対処（選択した案件に同じ操作を順に適用。1 件ずつ楽観ロック・監査）
+
+    public const BULK_ACTIONS = [
+        'acknowledge' => '確認済みにする',
+        'start' => '対応開始にする',
+        'assign' => '担当者を割り当てる',
+        'mark_recovered' => '復旧確認を記録する（人手で確認した）',
+        'resolve' => '対処完了（解決）にする ※復旧確認済みの案件だけ',
+        'resolve_close' => '解決して終了する ※復旧確認済みの案件だけ',
+        'close' => '終了する ※解決済みの案件だけ',
+    ];
+
+    public function bulkAction(): Action
+    {
+        return Action::make('bulk')->label(fn () => '選択した '.count($this->selected).' 件を一括対処')->color('primary')->icon('heroicon-o-check-circle')
+            ->visible(fn () => $this->can(\App\Monitoring\Services\MonitorAccess::RESPOND))
+            ->disabled(fn () => $this->selected === [])
+            ->modalHeading(fn () => '選択した '.count($this->selected).' 件に同じ対処を記録する')
+            ->modalDescription('1 件ずつ順に記録します（監査・通知の取消も個別に行われます）。状態が合わない案件（例: 未復旧の案件を解決にする）はスキップし、件数を表示します。')
+            ->modalSubmitActionLabel('一括で記録する')->modalCancelActionLabel('記録せず閉じる')->extraModalWindowAttributes(['class' => 'incoming-detail-modal'])->modalWidth('2xl')
+            ->schema([
+                Select::make('action')->label('対処')->options(self::BULK_ACTIONS)->default('acknowledge')->required()->live(),
+                TextInput::make('assignee_name')->label('担当者名')->default(fn () => auth()->user()?->name)->maxLength(100)->visible(fn (Get $get) => $get('action') === 'assign')->required(fn (Get $get) => $get('action') === 'assign'),
+                Select::make('cause_category')->label('原因分類')->options([
+                    'data_delay' => '元データの遅延・未受信', 'batch_failure' => 'バッチ失敗・未実行', 'lock_contention' => '排他ロック競合', 'config' => '設定・スケジュール不備',
+                    'external' => '外部システム・接続先', 'application_bug' => 'アプリ不具合', 'infra' => 'インフラ・容量', 'monitoring' => '監視側の問題（誤検知含む）', 'undetermined' => '未確定',
+                ])->visible(fn (Get $get) => in_array($get('action'), ['resolve', 'resolve_close'], true))->required(fn (Get $get) => in_array($get('action'), ['resolve', 'resolve_close'], true)),
+                Textarea::make('action_taken')->label('実施内容')->rows(2)->visible(fn (Get $get) => in_array($get('action'), ['resolve', 'resolve_close'], true))->required(fn (Get $get) => in_array($get('action'), ['resolve', 'resolve_close'], true)),
+                Textarea::make('verification')->label('検証結果（どう確認したか）')->rows(2)->visible(fn (Get $get) => in_array($get('action'), ['resolve', 'resolve_close'], true))->required(fn (Get $get) => in_array($get('action'), ['resolve', 'resolve_close'], true)),
+                Textarea::make('reason')->label(fn (Get $get) => $get('action') === 'mark_recovered' ? '再確認した内容（必須）' : 'コメント（全件に同じ内容を記録）')->rows(2)->required(fn (Get $get) => $get('action') === 'mark_recovered'),
+            ])
+            ->action(fn (array $data) => $this->performBulk($data));
+    }
+
+    private function performBulk(array $data): void
+    {
+        $action = (string) ($data['action'] ?? '');
+        if (! isset(self::BULK_ACTIONS[$action]) || $this->selected === []) {
+            return;
+        }
+        $incidents = Incident::query()->whereIn('site_id', $this->viewableSiteIds())->whereIn('public_id', $this->selected)->orderBy('id')->get();
+        $ok = 0;
+        $skipped = [];
+        $svc = app(\App\Monitoring\Services\IncidentService::class);
+        foreach ($incidents as $incident) {
+            try {
+                $this->access()->authorize(auth()->user(), \App\Monitoring\Services\MonitorAccess::RESPOND, $this->siteCode((int) $incident->site_id));
+                $steps = $action === 'resolve_close' ? ['resolve', 'close'] : [$action];
+                DB::connection('monitor_store')->transaction(function () use ($svc, $incident, $steps, $data) {
+                    foreach ($steps as $step) {
+                        $input = match ($step) {
+                            'assign' => ['assignee_name' => (string) $data['assignee_name'], 'assignee_id' => ($data['assignee_name'] ?? null) === auth()->user()?->name ? auth()->id() : null],
+                            'resolve' => ['cause_category' => $data['cause_category'] ?? null, 'action_taken' => $data['action_taken'] ?? null, 'verification' => $data['verification'] ?? null, 'reason' => $data['reason'] ?? null],
+                            default => ['reason' => ($data['reason'] ?? null) ?: ($step === 'start' ? 'エラー管理の一括対処' : null)],
+                        };
+                        $incident = $svc->act($incident, $step, (int) $incident->version, $this->actor(), $input, "ui-bulk:{$incident->id}:{$step}:{$incident->version}");
+                    }
+                }, 2);
+                $ok++;
+            } catch (\App\Monitoring\Exceptions\VersionConflict|\App\Monitoring\Exceptions\InvalidTransition|\App\Monitoring\Exceptions\AccessDenied $e) {
+                $skipped[] = $incident->public_id.'（'.$e->getMessage().'）';
+            }
+        }
+        $this->selected = [];
+        $msg = self::BULK_ACTIONS[$action].': '.$ok.' 件を記録しました。';
+        if ($skipped !== []) {
+            $msg .= ' スキップ '.count($skipped).' 件: '.implode(' / ', array_slice($skipped, 0, 5)).(count($skipped) > 5 ? ' …' : '');
+            $this->flash = $msg;
+            $this->flashLevel = $ok > 0 ? 'warn' : 'error';
+        } else {
+            $this->ok($msg);
+        }
     }
 
     public function applyFilters(): void

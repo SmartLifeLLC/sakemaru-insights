@@ -296,4 +296,46 @@ class PageActionsTest extends MonitoringTestCase
         $this->assertSame(1, Incident::query()->whereIn('workflow_status', \App\Monitoring\Enums\WorkflowStatus::unresolvedValues())->count(), '他ノードの案件は残る');
         $this->assertSame(1, \App\Models\Monitoring\AuditEvent::query()->where('action', 'node.delete')->count());
     }
+
+    /** 一括対処: 選択した案件に同じ操作を順に記録し、状態が合わない案件はスキップして件数を出す。 */
+    public function test_bulk_action_applies_to_selected_incidents_and_skips_invalid_ones(): void
+    {
+        $this->bootRegistries();
+        app(ObservationIngestor::class)->ingestInternal([
+            $this->event(['scope' => ['fp' => 'a'], 'summary' => 'A']),
+            $this->event(['scope' => ['fp' => 'b'], 'summary' => 'B']),
+            $this->event(['scope' => ['fp' => 'c'], 'summary' => 'C']),
+        ]);
+        $this->actingAs($this->user());
+        $ids = Incident::query()->orderBy('id')->pluck('public_id')->all();
+        $this->assertCount(3, $ids);
+
+        // 2 件を確認済みに
+        $c = Livewire::test(Incidents::class)->set('selected', [$ids[0], $ids[1]]);
+        $c->callAction('bulk', ['action' => 'acknowledge', 'reason' => '一括で把握'])->assertHasNoActionErrors();
+        $this->assertSame('ok', $c->get('flashLevel'));
+        $this->assertSame([], $c->get('selected'));
+        $this->assertSame(['ACKNOWLEDGED', 'ACKNOWLEDGED', 'OPEN'], Incident::query()->orderBy('id')->get()->map(fn ($i) => $i->workflow_status->value)->all());
+
+        // 全選択 → 復旧確認は理由必須
+        $c = Livewire::test(Incidents::class)->call('toggleSelectAll');
+        $this->assertCount(3, $c->get('selected'));
+        $c->callAction('bulk', ['action' => 'mark_recovered', 'reason' => ''])->assertHasActionErrors(['reason']);
+
+        // 1 件だけ復旧確認してから「解決して終了」を 3 件に → 1 件成功・2 件スキップ（未復旧）
+        $svc = app(\App\Monitoring\Services\IncidentService::class);
+        $first = Incident::query()->orderBy('id')->first();
+        $svc->act($first, 'mark_recovered', (int) $first->version, ['id' => 1, 'name' => 't'], ['reason' => '再確認した'], 'k1');
+        $c = Livewire::test(Incidents::class)->set('selected', $ids);
+        $c->callAction('bulk', ['action' => 'resolve_close', 'cause_category' => 'monitoring', 'action_taken' => '誤検知の修正をリリース', 'verification' => '次回チェックで正常', 'reason' => ''])->assertHasNoActionErrors();
+        $this->assertSame('warn', $c->get('flashLevel'));
+        $this->assertStringContainsString('1 件を記録', (string) $c->get('flash'));
+        $this->assertStringContainsString('スキップ 2 件', (string) $c->get('flash'));
+        $this->assertSame('CLOSED', $first->refresh()->workflow_status->value);
+        $this->assertSame(2, Incident::query()->whereIn('workflow_status', \App\Monitoring\Enums\WorkflowStatus::unresolvedValues())->count());
+
+        // 対応権限が無ければボタンは出ない
+        config()->set('monitoring.permissions', ['monitor.view' => ['*'], 'monitor.respond' => ['nobody@example.com']]);
+        Livewire::test(Incidents::class)->assertActionHidden('bulk');
+    }
 }

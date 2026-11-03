@@ -26,14 +26,16 @@
             <select class="field-select" wire:model.live="pageSize" aria-label="件数">@foreach (config('monitoring.ui.page_size_options') as $ps)<option value="{{ $ps }}">{{ $ps }} 件</option>@endforeach</select>
             <button type="submit" class="btn primary">検索</button>
             <button type="button" class="btn subtle" wire:click="resetFilters">条件を戻す</button>
+            <span class="bulk-slot">{{ $this->bulkAction }}</span>
         </form>
         @if ($this->error)<div class="flash error" style="margin:12px 20px">{{ $this->error }}</div>@endif
         <div class="table-scroll">
             <table>
-                <thead><tr><th>重大度</th><th>エラー番号</th><th>サービス</th><th>内容</th><th>観測</th><th>対応</th><th>最終検知</th><th>回数</th><th>担当</th><th>未確認時間</th><th>通知</th></tr></thead>
+                <thead><tr><th class="select-col"><input type="checkbox" aria-label="表示中の全件を選択" wire:click="toggleSelectAll" @checked(($page?->items ?? []) !== [] && count(array_intersect(array_map(fn ($x) => $x->public_id, $page?->items ?? []), $this->selected)) === count($page?->items ?? []))></th><th>重大度</th><th>エラー番号</th><th>サービス</th><th>内容</th><th>観測</th><th>対応</th><th>最終検知</th><th>回数</th><th>担当</th><th>未確認時間</th><th>通知</th></tr></thead>
                 <tbody>
                 @forelse (($page?->items ?? []) as $i)
                     <tr data-incident wire:click="openIncident('{{ $i->public_id }}')">
+                        <td class="select-col" wire:click.stop><input type="checkbox" value="{{ $i->public_id }}" wire:model.live="selected" aria-label="{{ $i->public_id }} を選択"></td>
                         <td><x-monitor.sev :severity="$i->severity" /></td>
                         <td class="mono">{{ $i->public_id }}</td>
                         <td>{{ $this->siteLabel((int) $i->site_id) }}</td>
@@ -47,7 +49,7 @@
                         <td>@if ($i->last_delivery_status)<span class="badge {{ $i->last_delivery_status === 'DELIVERED' ? 'ok' : ($i->last_delivery_status === 'BLOCKED' ? 'error' : 'neutral') }}">{{ Ui::label($i->last_delivery_status) }}</span>@endif @if ($i->snoozed_until && $i->snoozed_until->greaterThan($now))<span class="badge warn">抑止中</span>@endif</td>
                     </tr>
                 @empty
-                    <tr><td colspan="11"><div class="empty">{{ $this->tab === 'unacknowledged' ? '未確認のエラーはありません。' : '該当するエラーはありません。条件を変えるか「すべて」タブで確認してください。' }}</div></td></tr>
+                    <tr><td colspan="12"><div class="empty">{{ $this->tab === 'unacknowledged' ? '未確認のエラーはありません。' : '該当するエラーはありません。条件を変えるか「すべて」タブで確認してください。' }}</div></td></tr>
                 @endforelse
                 </tbody>
             </table>
