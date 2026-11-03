@@ -32,7 +32,7 @@ class NotificationBacklogCheck extends AbstractCheck
         if ($oldest) {
             $age = (int) CarbonImmutable::instance($oldest->created_at)->diffInSeconds($ctx->nowUtc);
             if ($age > $stale) {
-                $obs[] = Observation::violation('通知 N-'.$oldest->id.' が '.intdiv($age, 60).'分間未送信です（'.$oldest->status.' / '.($oldest->last_error_code ?: '-').'）。', ['queue' => 'pending'], null, ['oldest_age_seconds' => $age], [], 'MONITOR_NOTIFICATION_STALE');
+                $obs[] = Observation::violation('通知 N-'.$oldest->id.' が '.intdiv($age, 60).'分間未送信です（'.($oldest->status instanceof \BackedEnum ? $oldest->status->value : (string) $oldest->status).' / '.($oldest->last_error_code ?: '-').'）。', ['queue' => 'pending'], null, ['oldest_age_seconds' => $age], [], 'MONITOR_NOTIFICATION_STALE');
             } else {
                 $obs[] = Observation::healthy('未送信通知は '.$age.' 秒以内です。', ['queue' => 'pending'], null, ['oldest_age_seconds' => $age]);
             }
