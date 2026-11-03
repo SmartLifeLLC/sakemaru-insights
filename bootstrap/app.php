@@ -11,7 +11,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // 運用監視の取込 API は HMAC 認証（セッション外）のため CSRF 検証を除外する
+        $middleware->validateCsrfTokens(except: ['internal/monitor/*']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

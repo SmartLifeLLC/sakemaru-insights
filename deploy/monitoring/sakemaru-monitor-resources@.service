@@ -1,0 +1,26 @@
+[Unit]
+Description=Sakemaru Insights resource sampler (%i) - /proc 直読み、平常 30 秒・警告域 1 秒
+After=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/sakemaru-insights
+Environment=MONITOR_DEPLOYMENT_ID=%i
+# ノードの識別は .env（MONITOR_NODE_CODE / MONITOR_NODE_ROLE / MONITOR_NODE_DISPLAY_NAME）
+ExecStart=/usr/bin/php artisan monitor:sample-resources
+Restart=always
+RestartSec=10
+# 長時間稼働の PHP を 1 日 1 回入れ替える（メモリ断片化対策）
+RuntimeMaxSec=1d
+Slice=sakemaru-monitor@%i.slice
+Nice=15
+IOSchedulingClass=idle
+CPUQuota=5%
+MemoryMax=128M
+KillSignal=SIGTERM
+TimeoutStopSec=10
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,10 @@
+[Unit]
+Description=Send external heartbeat every minute (%i)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=60s
+Unit=sakemaru-monitor-health@%i.service
+
+[Install]
+WantedBy=timers.target

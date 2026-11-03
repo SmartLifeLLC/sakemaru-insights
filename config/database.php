@@ -65,7 +65,7 @@ return [
 
         // Sakemaru shared DB (no prefix - for auth/master tables)
         'sakemaru' => [
-            'driver' => 'mysql',
+            'driver' => env('DB_DRIVER_SAKEMARU', 'mysql'),
             'url' => '',
             'host' => env('DB_HOST_SAKEMARU', '127.0.0.1'),
             'port' => env('DB_PORT_SAKEMARU', '3306'),
@@ -73,6 +73,56 @@ return [
             'username' => env('DB_USERNAME_SAKEMARU', 'forge'),
             'password' => env('DB_PASSWORD_SAKEMARU', ''),
             'unix_socket' => env('DB_SOCKET_SAKEMARU', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_general_ci',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                (PHP_VERSION_ID >= 80500 ? \Pdo\Mysql::ATTR_SSL_CA : \PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
+
+        /*
+        | 運用監視: 監視データ（ins_monitor_*）専用の読書き接続。
+        | 既定では Insights の default 接続と同じ DB を指すが、モデルは必ずこの接続名を明示する。
+        | 接続名で用途を固定し、default へのフォールバックを作らない（仕様書 4.2）。
+        */
+        'monitor_store' => [
+            'driver' => env('MONITOR_STORE_DRIVER', env('DB_CONNECTION', 'mysql')) === 'sqlite' ? 'sqlite' : 'mysql',
+            'url' => null,
+            'host' => env('MONITOR_STORE_HOST', env('DB_HOST', '127.0.0.1')),
+            'port' => env('MONITOR_STORE_PORT', env('DB_PORT', '3306')),
+            'database' => env('MONITOR_STORE_DATABASE', env('DB_DATABASE', 'laravel')),
+            'username' => env('MONITOR_STORE_USERNAME', env('DB_USERNAME', 'root')),
+            'password' => env('MONITOR_STORE_PASSWORD', env('DB_PASSWORD', '')),
+            'unix_socket' => env('DB_SOCKET', ''),
+            'charset' => env('DB_CHARSET', 'utf8mb4'),
+            'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => env('MONITOR_STORE_TABLE_PREFIX', env('DB_TABLE_PREFIX', 'ins_')),
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => 'InnoDB',
+            'foreign_key_constraints' => false,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                (PHP_VERSION_ID >= 80500 ? \Pdo\Mysql::ATTR_SSL_CA : \PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
+
+        /*
+        | 運用監視: 業務DBへの SELECT 専用接続。可能なら DML/DDL 権限のない専用ユーザーを使う。
+        | MONITOR_SOURCE_DATABASE が未設定の場合、SourceReader は接続を拒否する（広い権限の接続へ自動フォールバックしない）。
+        */
+        'monitor_source' => [
+            'driver' => env('MONITOR_SOURCE_DRIVER', 'mysql') === 'sqlite' ? 'sqlite' : 'mysql',
+            'url' => null,
+            'host' => env('MONITOR_SOURCE_HOST', env('DB_HOST_SAKEMARU', '127.0.0.1')),
+            'port' => env('MONITOR_SOURCE_PORT', env('DB_PORT_SAKEMARU', '3306')),
+            'database' => env('MONITOR_SOURCE_DATABASE'),
+            'username' => env('MONITOR_SOURCE_USERNAME'),
+            'password' => env('MONITOR_SOURCE_PASSWORD', ''),
+            'unix_socket' => '',
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_general_ci',
             'prefix' => '',

@@ -1,0 +1,14 @@
+[Unit]
+Description=Sakemaru Insights monitor checks (%i)
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/sakemaru-insights
+Environment=MONITOR_DEPLOYMENT_ID=%i
+ExecStart=/usr/bin/php artisan monitor:run-checks
+Slice=sakemaru-monitor@%i.slice
+Nice=10
+TimeoutStartSec=120

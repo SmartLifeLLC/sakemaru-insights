@@ -1,0 +1,13 @@
+[Unit]
+Description=Sakemaru Insights retention (%i)
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/sakemaru-insights
+Environment=MONITOR_DEPLOYMENT_ID=%i
+ExecStart=/usr/bin/php artisan monitor:retention
+Slice=sakemaru-monitor@%i.slice
+Nice=15
+TimeoutStartSec=120

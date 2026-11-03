@@ -1,0 +1,15 @@
+[Unit]
+Description=Sakemaru Insights feature recommendation detection (%i)
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/sakemaru-insights
+Environment=MONITOR_DEPLOYMENT_ID=%i
+# 推奨値だけを更新し、監視の有効/無効は変えない（owner ノードだけで有効化する）
+ExecStart=/usr/bin/php artisan monitor:detect-features
+ExecStartPost=/usr/bin/php artisan monitor:sync-targets
+Slice=sakemaru-monitor@%i.slice
+Nice=10
+TimeoutStartSec=120
