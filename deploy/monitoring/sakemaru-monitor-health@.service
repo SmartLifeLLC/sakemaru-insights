@@ -1,0 +1,12 @@
+[Unit]
+Description=Sakemaru Insights external heartbeat (%i)
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/sakemaru-insights
+Environment=MONITOR_DEPLOYMENT_ID=%i
+ExecStart=/usr/bin/php artisan monitor:health --external-heartbeat
+Slice=sakemaru-monitor@%i.slice
+Nice=10

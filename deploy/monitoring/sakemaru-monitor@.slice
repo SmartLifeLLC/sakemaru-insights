@@ -1,0 +1,6 @@
+[Unit]
+Description=Sakemaru Insights monitoring (deployment %i)
+
+[Slice]
+MemoryMax=256M
+CPUQuota=10%

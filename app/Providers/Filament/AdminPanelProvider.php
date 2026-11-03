@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use Archilex\AdvancedTables\Plugin\AdvancedTablesPlugin;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
@@ -11,14 +12,13 @@ use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
 use Filament\Widgets\AccountWidget;
 use Filament\Widgets\FilamentInfoWidget;
-use Archilex\AdvancedTables\Plugin\AdvancedTablesPlugin;
-use WatheqAlshowaiter\FilamentStickyTableHeader\StickyTableHeaderPlugin;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use WatheqAlshowaiter\FilamentStickyTableHeader\StickyTableHeaderPlugin;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -40,7 +40,15 @@ class AdminPanelProvider extends PanelProvider
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
-//                Dashboard::class,
+                //                Dashboard::class,
+            ])
+            // 運用監視は /monitor パネルへ移動（v2 第6.1）。/admin のメニューにはリンクだけを置く
+            ->navigationItems([
+                \Filament\Navigation\NavigationItem::make('運用監視')
+                    ->url('/monitor')
+                    ->icon('heroicon-o-shield-check')
+                    ->sort(90)
+                    ->visible(fn () => app(\App\Monitoring\Services\MonitorAccess::class)->can(auth()->user(), \App\Monitoring\Services\MonitorAccess::VIEW)),
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->widgets([

@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Sakemaru Insights monitor checks every minute (%i)
+
+[Timer]
+OnBootSec=90s
+OnUnitActiveSec=60s
+AccuracySec=5s
+Unit=sakemaru-monitor-checks@%i.service
+
+[Install]
+WantedBy=timers.target

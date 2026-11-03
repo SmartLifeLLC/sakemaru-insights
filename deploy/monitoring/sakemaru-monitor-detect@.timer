@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily feature recommendation detection (%i)
+
+[Timer]
+OnCalendar=*-*-* 05:17:00
+RandomizedDelaySec=300
+Persistent=true
+Unit=sakemaru-monitor-detect@%i.service
+
+[Install]
+WantedBy=timers.target

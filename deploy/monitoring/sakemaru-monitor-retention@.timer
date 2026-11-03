@@ -1,0 +1,11 @@
+[Unit]
+Description=Delete expired monitor data every 15 minutes (%i)
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=15min
+RandomizedDelaySec=60s
+Unit=sakemaru-monitor-retention@%i.service
+
+[Install]
+WantedBy=timers.target

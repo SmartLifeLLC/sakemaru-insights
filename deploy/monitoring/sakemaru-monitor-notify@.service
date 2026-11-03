@@ -1,0 +1,18 @@
+[Unit]
+Description=Sakemaru Insights notification dispatcher (%i)
+After=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/sakemaru-insights
+Environment=MONITOR_DEPLOYMENT_ID=%i
+ExecStart=/usr/bin/php artisan monitor:dispatch-notifications --loop=50
+Restart=always
+RestartSec=10
+Slice=sakemaru-monitor@%i.slice
+Nice=10
+
+[Install]
+WantedBy=multi-user.target

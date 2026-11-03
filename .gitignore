@@ -25,3 +25,4 @@ Thumbs.db
 /storage/debugbar/
 __pycache__/
 .claude/
+/Claude outputs/
