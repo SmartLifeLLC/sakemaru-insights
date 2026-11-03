@@ -156,3 +156,6 @@ main{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;padd
 .tree-feature{border-top:1px dashed var(--border-soft)}.check-toggle{margin-left:8px}
 .chip{display:inline-block;font-size:11px;padding:1px 8px;border-radius:999px;background:var(--panel2);color:var(--muted);border:1px solid var(--border);margin-left:6px}.chip.review{background:#fef3c7;color:#92400e;border-color:#fcd34d}
 [x-cloak]{display:none!important}
+/* エラー管理: 一括対処の選択列 */
+th.select-col,td.select-col{width:36px;padding-left:12px;padding-right:4px}.select-col input{width:15px;height:15px;accent-color:var(--blue);cursor:pointer;margin:0;vertical-align:middle}
+.bulk-slot{margin-left:auto}.bulk-slot .fi-btn{font-size:13px;font-weight:600}
