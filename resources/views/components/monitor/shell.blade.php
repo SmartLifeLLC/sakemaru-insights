@@ -95,7 +95,8 @@
                 </div>
             @endif
             {{ $toolbar }}
-            {{ $slot }}
+            {{-- 本文だけがスクロールする（上部バー・見出し・ツールバーは固定、v2.1） --}}
+            <div class="page-scroll">{{ $slot }}</div>
         </main>
         <footer class="footer">
             <span><span class="dot {{ $infraOk ? 'green' : 'amber' }}"></span>{{ $s['client'] }} {{ $s['env'] }} / 配置 {{ $s['deployment'] }}</span>

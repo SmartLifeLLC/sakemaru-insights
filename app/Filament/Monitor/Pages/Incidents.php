@@ -40,7 +40,7 @@ class Incidents extends MonitorPage
     public ?string $search = null;
 
     #[Url(as: 'size')]
-    public int $pageSize = 50;
+    public int $pageSize = 20;
 
     #[Url]
     public ?string $cursor = null;
@@ -50,8 +50,8 @@ class Incidents extends MonitorPage
     public function mount(): void
     {
         parent::mount();
-        if (! in_array($this->pageSize, (array) config('monitoring.ui.page_size_options', [25, 50, 100]), true)) {
-            $this->pageSize = 50;
+        if (! in_array($this->pageSize, (array) config('monitoring.ui.page_size_options', [20, 50, 100]), true)) {
+            $this->pageSize = (int) config('monitoring.ui.page_size_default', 20);
         }
     }
 

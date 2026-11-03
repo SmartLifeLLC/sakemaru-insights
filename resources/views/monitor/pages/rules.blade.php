@@ -23,35 +23,47 @@
     </div>
 
     @if ($this->tab === 'features')
-        <p class="rule-tip">{!! Icon::svg('info') !!}上位が無効なら下位は実行されず「未監視」と表示します（正常とは表示しません）。推奨値は業務設定から検出しますが、自動では切り替えません。</p>
+        <div class="rule-legend">
+            <span><b>サービス → 機能 → 監視項目</b> の順に ON / OFF を決めます。上位が OFF なら下位は実行されず「未監視」になります。</span>
+            <span class="rule-legend-keys"><span class="onoff-demo on">ON</span> 監視する <span class="onoff-demo off">OFF</span> 監視しない <span class="chip review">要確認</span> 推奨と現在の設定が違う</span>
+        </div>
         <section class="panel">
             <div class="tree">
                 @foreach ($d['tree'] as $node)
                     @php($s = $node['site'])
                     <div class="tree-site">
                         <div class="tree-row">
-                            <span><b>{{ $this->sites()->label($s->application_code) }}</b> <span class="muted">{{ config('monitoring.sites.'.$s->application_code.'.role') }}</span></span>
-                            <span>@if ($s->enabled)<span class="badge ok">監視中</span>@else<span class="badge neutral">停止</span>@endif</span>
-                            <span>@if ($d['canManage']){{ ($this->toggleSiteAction)(['id' => $s->id]) }}@endif</span>
+                            <span><b>{{ $this->sites()->label($s->application_code) }}</b> <span class="muted">{{ config('monitoring.sites.'.$s->application_code.'.role') }}</span>
+                                <span class="muted">· 機能 {{ collect($node['features'])->filter(fn ($fx) => $fx['feature']->enabled)->count() }} / {{ count($node['features']) }} を監視中</span></span>
+                            <span>@if ($d['canManage']){{ ($this->toggleSiteAction)(['id' => $s->id]) }}@else<span class="onoff-demo {{ $s->enabled ? 'on' : 'off' }}">{{ $s->enabled ? 'ON' : 'OFF' }}</span>@endif</span>
                         </div>
                         @foreach ($node['features'] as $fx)
                             @php($f = $fx['feature'])
-                            <div class="tree-row level-1">
-                                <span>{{ $f->display_name }} <span class="code-name mono">{{ $f->feature_key }}</span>
-                                    @if ($f->recommended_enabled !== null)<span class="chip {{ $f->needsReview() ? 'review' : '' }}" title="{{ $f->recommended_reason }}">{{ $f->needsReview() ? '要確認 · ' : '' }}推奨: {{ $f->recommended_enabled ? '有効' : '無効' }}（{{ \Illuminate\Support\Str::limit((string) $f->recommended_reason, 30) }}）</span>@endif
-                                    @if ($f->updated_name)<span class="muted">· {{ $f->updated_name }} {{ P::jst($f->updated_at) }}</span>@endif
-                                </span>
-                                <span>@if (! $s->enabled)<span class="badge neutral">未監視（サービス停止）</span>@elseif ($f->enabled)<span class="badge ok">監視中</span>@else<span class="badge neutral">未監視（機能未使用）</span>@endif</span>
-                                <span>@if ($d['canManage']){{ ($this->toggleFeatureAction)(['id' => $f->id]) }}@endif</span>
-                            </div>
-                            @foreach ($fx['checks'] as $cx)
-                                @php($c = $cx['model'])
-                                <div class="tree-row level-2">
-                                    <span>{{ $c->display_name }} <span class="code-name mono">{{ $c->check_key }}</span> <span class="muted">{{ $c->last_completed_at ? '最終 '.P::ago($c->last_completed_at) : '' }}</span></span>
-                                    <span>@if ($cx['gate']['active'])<x-monitor.outcome :outcome="(string) $c->last_outcome" />@else<span class="badge neutral">{{ FeatureRegistry::gateLabel($cx['gate']['reason']) }}</span>@endif</span>
-                                    <span>@if ($d['canManage'] && $c->implemented){{ ($this->toggleCheckAction)(['id' => $c->id]) }}@endif</span>
+                            @php($effective = ! $s->enabled ? 'サービスが OFF のため未監視' : ($f->enabled ? null : '未監視'))
+                            <div class="tree-feature" x-data="{ open: false }">
+                                <div class="tree-row level-1">
+                                    <span>
+                                        <span class="feature-name">{{ $f->display_name }}</span> <span class="code-name mono">{{ $f->feature_key }}</span>
+                                        @if ($f->recommended_enabled !== null)
+                                            <span class="chip {{ $f->needsReview() ? 'review' : '' }}" title="{{ $f->recommended_reason }}">{{ $f->needsReview() ? '要確認: ' : '' }}推奨 {{ $f->recommended_enabled ? 'ON' : 'OFF' }}（{{ \Illuminate\Support\Str::limit((string) $f->recommended_reason, 30) }}）</span>
+                                        @endif
+                                        @if ($effective)<span class="muted">· {{ $effective }}</span>@endif
+                                        @if ($f->updated_name)<span class="muted">· {{ $f->updated_name }} {{ P::jst($f->updated_at) }}</span>@endif
+                                        @if (count($fx['checks']) > 0)<button type="button" class="btn link check-toggle" x-on:click="open = ! open" x-text="open ? '監視項目を閉じる' : '監視項目 {{ count($fx['checks']) }} 件を表示'"></button>@endif
+                                    </span>
+                                    <span>@if ($d['canManage']){{ ($this->toggleFeatureAction)(['id' => $f->id]) }}@else<span class="onoff-demo {{ $f->enabled ? 'on' : 'off' }}">{{ $f->enabled ? 'ON' : 'OFF' }}</span>@endif</span>
                                 </div>
-                            @endforeach
+                                <div x-show="open" x-cloak>
+                                @foreach ($fx['checks'] as $cx)
+                                    @php($c = $cx['model'])
+                                    <div class="tree-row level-2">
+                                        <span>{{ $c->display_name }} <span class="code-name mono">{{ $c->check_key }}</span> <span class="muted">{{ $c->last_completed_at ? '最終 '.P::ago($c->last_completed_at) : '' }}</span>
+                                            @if ($cx['gate']['active'])<x-monitor.outcome :outcome="(string) $c->last_outcome" />@else<span class="badge neutral">{{ FeatureRegistry::gateLabel($cx['gate']['reason']) }}</span>@endif</span>
+                                        <span>@if ($d['canManage'] && $c->implemented){{ ($this->toggleCheckAction)(['id' => $c->id]) }}@elseif (! $c->implemented)<span class="badge neutral">未実装</span>@else<span class="onoff-demo {{ $c->enabled ? 'on' : 'off' }}">{{ $c->enabled ? 'ON' : 'OFF' }}</span>@endif</span>
+                                    </div>
+                                @endforeach
+                                </div>
+                            </div>
                         @endforeach
                     </div>
                 @endforeach
@@ -115,7 +127,7 @@
             @forelse ($d['nodes'] as $n)
                 <tr><td class="mono">{{ $n->node_code }}</td><td>{{ $n->display_name }}</td><td>{{ $n->role }}</td><td>{!! $n->enabled ? '<span class="badge ok">有効</span>' : '<span class="badge neutral">無効</span>' !!}</td><td>{{ P::ago($n->last_heartbeat_at) }}</td>
                     <td class="mono" style="font-size:9px">{{ $n->thresholds_json ? collect($n->thresholds_json)->map(fn ($v, $k) => $k.': '.json_encode($v))->implode(' / ') : '既定' }}</td>
-                    <td>@if ($d['canManage']){{ ($this->editNodeAction)(['id' => $n->id]) }}@endif</td></tr>
+                    <td style="white-space:nowrap">@if ($d['canManage']){{ ($this->editNodeAction)(['id' => $n->id]) }} {{ ($this->deleteNodeAction)(['id' => $n->id]) }}@endif</td></tr>
             @empty
                 <tr><td colspan="7"><div class="empty">ノードはまだありません（資源収集の初回送信で登録されます）。</div></td></tr>
             @endforelse

@@ -134,7 +134,11 @@ class Rules extends MonitorPage
 
     public function toggleSiteAction(): Action
     {
-        return Action::make('toggleSite')->label('切替')->size('sm')->color('gray')
+        // ボタン自体が現在の状態（ON=緑 / OFF=灰）。押すと理由を入れて反対側へ切り替える（WMS の ON バッジと同じ見え方）
+        return Action::make('toggleSite')->size('sm')
+            ->label(fn (array $arguments) => Site::query()->find($arguments['id'] ?? 0)?->enabled ? 'ON' : 'OFF')
+            ->color(fn (array $arguments) => Site::query()->find($arguments['id'] ?? 0)?->enabled ? 'success' : 'gray')
+            ->extraAttributes(fn (array $arguments) => ['class' => 'onoff '.(Site::query()->find($arguments['id'] ?? 0)?->enabled ? 'is-on' : 'is-off'), 'title' => '押すと切り替え（理由を入力）'])
             ->modalHeading(fn (array $arguments) => 'サービスの監視を'.(Site::query()->find($arguments['id'] ?? 0)?->enabled ? '停止' : '再開').'する')
             ->modalDescription('停止中は配下の機能・監視項目を実行せず、画面では「未監視（サービス停止）」と表示します。')
             ->modalSubmitActionLabel('切り替える')->modalCancelActionLabel('切り替えず閉じる')->extraModalWindowAttributes(['class' => 'incoming-detail-modal'])
@@ -149,7 +153,10 @@ class Rules extends MonitorPage
 
     public function toggleFeatureAction(): Action
     {
-        return Action::make('toggleFeature')->label('切替')->size('sm')->color('gray')
+        return Action::make('toggleFeature')->size('sm')
+            ->label(fn (array $arguments) => Feature::query()->find($arguments['id'] ?? 0)?->enabled ? 'ON' : 'OFF')
+            ->color(fn (array $arguments) => Feature::query()->find($arguments['id'] ?? 0)?->enabled ? 'success' : 'gray')
+            ->extraAttributes(fn (array $arguments) => ['class' => 'onoff '.(Feature::query()->find($arguments['id'] ?? 0)?->enabled ? 'is-on' : 'is-off'), 'title' => '押すと切り替え（理由を入力）'])
             ->modalHeading(fn (array $arguments) => '機能「'.(Feature::query()->find($arguments['id'] ?? 0)?->display_name).'」を'.(Feature::query()->find($arguments['id'] ?? 0)?->enabled ? '未監視にする' : '監視する'))
             ->modalDescription(fn (array $arguments) => ($f = Feature::query()->find($arguments['id'] ?? 0)) && $f->recommended_enabled !== null ? '推奨: '.($f->recommended_enabled ? '有効' : '無効').'（'.$f->recommended_reason.'）' : '推奨値は未検出です。')
             ->modalSubmitActionLabel('切り替える')->modalCancelActionLabel('切り替えず閉じる')->extraModalWindowAttributes(['class' => 'incoming-detail-modal'])
@@ -163,7 +170,10 @@ class Rules extends MonitorPage
 
     public function toggleCheckAction(): Action
     {
-        return Action::make('toggleCheck')->label('切替')->size('sm')->color('gray')
+        return Action::make('toggleCheck')->size('sm')
+            ->label(fn (array $arguments) => CheckModel::query()->find($arguments['id'] ?? 0)?->enabled ? 'ON' : 'OFF')
+            ->color(fn (array $arguments) => CheckModel::query()->find($arguments['id'] ?? 0)?->enabled ? 'success' : 'gray')
+            ->extraAttributes(fn (array $arguments) => ['class' => 'onoff '.(CheckModel::query()->find($arguments['id'] ?? 0)?->enabled ? 'is-on' : 'is-off'), 'title' => '押すと切り替え（理由を入力）'])
             ->modalHeading(fn (array $arguments) => '監視項目 '.(CheckModel::query()->find($arguments['id'] ?? 0)?->check_key).' を切り替える')
             ->modalSubmitActionLabel('切り替える')->modalCancelActionLabel('切り替えず閉じる')->extraModalWindowAttributes(['class' => 'incoming-detail-modal'])
             ->visible(fn () => $this->canManage())
@@ -355,6 +365,20 @@ class Rules extends MonitorPage
                         $svc->setEnabled($t->fresh(), (bool) $data['enabled'], $this->actor(), (string) $data['reason']);
                     }
                 }, 'HTTP プローブを保存しました。');
+            });
+    }
+
+    public function deleteNodeAction(): Action
+    {
+        return Action::make('deleteNode')->label('削除')->size('sm')->color('danger')->requiresConfirmation()
+            ->modalHeading(fn (array $arguments) => 'ノード登録 '.(Node::query()->find($arguments['id'] ?? 0)?->node_code).' を削除する')
+            ->modalDescription('名前変更前の残骸など、もう使わない登録を消します。資源データが 10 分以上届いていないノードだけ削除できます。このノードの未解決インシデントは終了し、保留中の通知は取り消されます。')
+            ->modalSubmitActionLabel('削除する')->modalCancelActionLabel('削除せず閉じる')->extraModalWindowAttributes(['class' => 'incoming-detail-modal'])
+            ->visible(fn () => $this->canManage())
+            ->schema([$this->reasonField()])
+            ->action(function (array $arguments, array $data) {
+                $n = Node::query()->findOrFail($arguments['id'] ?? 0);
+                $this->run(fn () => app(RuleService::class)->deleteNode($n, $this->actor(), (string) $data['reason']), 'ノード登録 '.$n->node_code.' を削除しました。');
             });
     }
 }
