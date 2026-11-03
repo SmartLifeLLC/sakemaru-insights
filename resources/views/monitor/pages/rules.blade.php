@@ -25,7 +25,7 @@
     @if ($this->tab === 'features')
         <div class="rule-legend">
             <span><b>サービス → 機能 → 監視項目</b> の順に ON / OFF を決めます。上位が OFF なら下位は実行されず「未監視」になります。</span>
-            <span class="rule-legend-keys"><span class="onoff-demo on">ON</span> 監視する <span class="onoff-demo off">OFF</span> 監視しない <span class="chip review">要確認</span> 推奨と現在の設定が違う</span>
+            <span class="rule-legend-keys">@if ($d['canManage']){{ $this->applyRecommendedAction }}@endif <span class="onoff-demo on">ON</span> 監視する <span class="onoff-demo off">OFF</span> 監視しない <span class="chip review">要確認</span> 推奨と現在の設定が違う</span>
         </div>
         <section class="panel">
             <div class="tree">
