@@ -238,13 +238,13 @@ class PageActionsTest extends MonitoringTestCase
         $this->bootRegistries();
         app(ObservationIngestor::class)->ingestInternal([$this->event()]);
         $this->actingAs($this->user());
-        $this->get('/monitor')->assertSee('アラート一時停止')->assertDontSee('アラート停止中');
+        $this->get('/monitor')->assertSee('通知 運用中')->assertSee('alert-state-running')->assertDontSee('通知 停止中');
         $c = Livewire::test(\App\Filament\Monitor\Pages\Dashboard::class);
         $c->callAction('pauseAlerts', ['minutes' => 30, 'reason' => ''])->assertHasActionErrors(['reason']);
         $c = Livewire::test(\App\Filament\Monitor\Pages\Dashboard::class);
         $c->callAction('pauseAlerts', ['minutes' => 30, 'reason' => '障害対応中'])->assertHasNoActionErrors();
         $this->assertNotNull(app(\App\Monitoring\Services\NotificationSettings::class)->pause());
-        $this->get('/monitor/logs')->assertSee('アラート停止中')->assertSee('障害対応中');
+        $this->get('/monitor/logs')->assertSee('通知 停止中 〜')->assertSee('alert-state-paused')->assertSee('障害対応中')->assertDontSee('alert-state-running');
         Livewire::test(\App\Filament\Monitor\Pages\Logs::class)->callAction('resumeAlerts')->assertHasNoActionErrors();
         $this->assertNull(app(\App\Monitoring\Services\NotificationSettings::class)->pause());
 

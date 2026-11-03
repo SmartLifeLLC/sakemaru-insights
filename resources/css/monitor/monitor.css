@@ -80,3 +80,45 @@ html.mon-root[data-theme=dark] .fi-modal-window{background:var(--panel)}
 a.service-row{color:inherit}
 .topbar .fi-btn{font-size:11px;padding:5px 10px;border-radius:6px}
 .banner.warning[data-kind=pause]{background:var(--amber-bg)}
+
+/* ---- v2.1 読みやすさ（華様の初回フィードバック 2026-11-04）: ライト既定・WMS と同じ配色（白地・紺帯・緑 ON）・日本語フォント・本文 13→14px・上部を詰める ---- */
+[data-theme=light]{--bg:#f3f4f6;--side:#fff;--panel:#fff;--panel2:#f8fafc;--hover:#eef2f7;--border:#cfd6df;--border-soft:#e3e8ee;--text:#111827;--muted:#4b5563;--faint:#6b7280;--blue:#2563eb;--blue-bg:#e8efff;--green:#15803d;--green-bg:#dcfce7;--red:#c81e1e;--red-bg:#fee2e2;--amber:#b45309;--amber-bg:#fef3c7;--purple:#7c3aed;--shadow:0 8px 30px #1f293714;--nav-bg:#1e293b;--nav-text:#cbd5e1;--nav-active:#fff}
+[data-theme=dark]{--text:#f3f5f9;--muted:#aab6c7;--faint:#8593a8;--nav-bg:var(--side);--nav-text:var(--muted);--nav-active:var(--text)}
+body{font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic UI",YuGothic,Meiryo,Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:14px;line-height:1.55;font-feature-settings:"palt"}
+.kpi-value,.stat-strip b,.mini-stat b{font-family:Inter,"Hiragino Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+/* サイドバー: WMS のヘッダーと同じ紺（ライト時）。文字は明色 */
+.sidebar{background:var(--nav-bg);color:var(--nav-text);border-right-color:transparent}
+.brand b{color:#fff}.brand small{color:#94a3b8}
+.workspace{background:#ffffff14;border-color:#ffffff22;color:#fff}.workspace small{color:#cbd5e1}.workspace-icon{background:#ffffff22;color:#fff}
+.nav-label{color:#94a3b8;font-size:10px}
+.nav-link{color:var(--nav-text);font-size:13px;padding:9px 12px}.nav-link:hover{background:#ffffff14;color:#fff}
+.nav-link.active{background:#ffffff1f;border-color:#ffffff2e;color:var(--nav-active)}
+.nav-badge{background:#dc2626;color:#fff;font-size:11px;font-weight:600}
+.collector{color:#e2e8f0;font-size:12px}.collector .mono{color:#cbd5e1}.sidebar-bottom p,.sidebar-bottom-link,.version{color:#94a3b8;font-size:11px}.version{border-top-color:#ffffff22}
+/* 上部: 高さを詰め、パンくず・大見出しを 1 行に */
+.topbar{height:48px;padding:0 20px;gap:12px}.top-section{font-size:14px;font-weight:700}.top-sub{font-size:12px}.search-trigger{font-size:12px}
+.topbar .fi-btn{font-size:13px;font-weight:600;padding:6px 14px;border-radius:6px}
+main{padding:14px 24px 16px;min-height:calc(100vh - 96px)}
+.breadcrumb{display:none}
+.heading{margin-bottom:12px;gap:10px}.heading>div{display:flex;align-items:baseline;gap:12px;min-width:0}.heading h1{font-size:18px;margin:0;white-space:nowrap}.heading p{font-size:12px;color:var(--muted);margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.banner{font-size:13px;padding:8px 12px;margin-bottom:8px}.flash{font-size:13px}.alert-strip{font-size:13px;padding:9px 12px;margin-bottom:12px}
+/* 本文の文字を大きく・濃く */
+.btn{font-size:13px;padding:6px 12px}.btn.link{font-size:12px}.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.field-select,.filter-search input,.input{font-size:13px}.segmented button{font-size:12px}.compare-control,.range-caption{font-size:12px}
+.kpi-top{font-size:13px;color:var(--text)}.kpi-value{font-size:30px}.kpi-meta,.kpi-split{font-size:12px}.kpi-caption{font-size:11px}
+.panel-title{font-size:15px}.panel-sub{font-size:12px}.legend,.chart-foot,.chart-hint,.flow-note{font-size:11px}
+.service-name{font-size:13px}.service-name small{font-size:11px}.status-label{font-size:12px}.service-head-stats{font-size:12px}
+.incident-body b{font-size:13px}.incident-body small,.incident-time{font-size:11px}.panel-bottom{font-size:12px}
+th{font-size:12px;font-weight:600;color:#fff;background:#334155;border-color:#334155;padding:8px 14px}[data-theme=dark] th{background:var(--panel2);color:var(--muted);border-color:var(--border-soft)}
+td{font-size:13px;padding:9px 14px}
+.badge{font-size:11px;padding:2px 8px;font-weight:600;border-radius:999px}.badge.info,.badge.ok{border-color:color-mix(in srgb,var(--green) 25%,transparent)}
+.code-name,.node-chip{font-size:12px}.tabs button{font-size:13px}.tabs small{font-size:11px}.tabs button.active{border-bottom-color:var(--blue);color:var(--blue)}
+.rule-name{font-size:13px}.rule-name small{font-size:11px}.rule-condition{font-size:12px}.rule-tip{font-size:12px}.mini-stat span,.mini-stat small{font-size:12px}
+.notification-card p,.notify-setting b{font-size:13px}.notify-setting p{font-size:12px}.runbook-card p{font-size:13px}
+.detail-item span,.detail-block h3,.form-note{font-size:12px}.detail-item b,.detail-block{font-size:13px}.detail-block pre{font-size:12px}.drawer-intro,.drawer label{font-size:13px}
+.node-card h3{font-size:14px}.node-card small,.gauge span{font-size:11px}.footer{font-size:11px;padding:12px 0 14px}
+.bar-row>span,.heat-row label,.heat-legend,.service-metrics span{font-size:11px}.data-notice{font-size:12px}.empty{font-size:13px}
+.env-badge{font-size:11px;letter-spacing:.5px}
+/* 上部の状態ボタン: 運用中＝緑、停止中＝赤（Filament の色に頼らず固定） */
+.topbar .fi-btn.alert-state-running,.topbar .fi-btn.alert-state-running:hover{background:#16a34a;border-color:#15803d;color:#fff}
+.topbar .fi-btn.alert-state-paused,.topbar .fi-btn.alert-state-paused:hover{background:#dc2626;border-color:#b91c1c;color:#fff}
