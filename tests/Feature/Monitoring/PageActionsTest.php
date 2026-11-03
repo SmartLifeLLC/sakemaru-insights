@@ -244,7 +244,12 @@ class PageActionsTest extends MonitoringTestCase
         $c = Livewire::test(\App\Filament\Monitor\Pages\Dashboard::class);
         $c->callAction('pauseAlerts', ['minutes' => 30, 'reason' => '障害対応中'])->assertHasNoActionErrors();
         $this->assertNotNull(app(\App\Monitoring\Services\NotificationSettings::class)->pause());
-        $this->get('/monitor/logs')->assertSee('通知 停止中 〜')->assertSee('alert-state-paused')->assertSee('障害対応中')->assertDontSee('alert-state-running');
+        $this->get('/monitor/logs')->assertSee('通知 停止中 〜')->assertSee('alert-state-paused')->assertDontSee('alert-state-running');
+        // 停止中の案内は本文のバナーではなく、ベル（お知らせ）のモーダルに出る
+        $this->get('/monitor/logs')->assertDontSee('class="banner');
+        $notices = (string) Livewire::test(\App\Filament\Monitor\Pages\Logs::class)->instance()->noticesAction()->getModalContent()->render();
+        $this->assertStringContainsString('アラート停止中', $notices);
+        $this->assertStringContainsString('障害対応中', $notices);
         Livewire::test(\App\Filament\Monitor\Pages\Logs::class)->callAction('resumeAlerts')->assertHasNoActionErrors();
         $this->assertNull(app(\App\Monitoring\Services\NotificationSettings::class)->pause());
 
@@ -259,5 +264,36 @@ class PageActionsTest extends MonitoringTestCase
         // 対応権限が無ければボタンは出ず、実行も拒否
         config()->set('monitoring.permissions', ['monitor.view' => ['*'], 'monitor.respond' => ['nobody@example.com']]);
         Livewire::test(\App\Filament\Monitor\Pages\Dashboard::class)->assertActionHidden('resumeAlerts');
+    }
+
+    /** 華 本番で .env 反映前に既定名 local で自動登録された残骸を消せること。受信中のノードは削除できない。 */
+    public function test_stale_node_registration_can_be_deleted_and_its_incidents_are_closed(): void
+    {
+        $this->bootRegistries();
+        $this->actingAs($this->user());
+        $now = \Carbon\CarbonImmutable::now('UTC');
+        $stale = \App\Models\Monitoring\Node::query()->create(['node_code' => 'local', 'display_name' => 'local', 'role' => 'web', 'enabled' => true, 'registered_from' => 'env', 'last_heartbeat_at' => $now->subMinutes(15)]);
+        $live = \App\Models\Monitoring\Node::query()->create(['node_code' => 'web1', 'display_name' => 'web1', 'role' => 'web', 'enabled' => true, 'registered_from' => 'env', 'last_heartbeat_at' => $now->subMinutes(1)]);
+        \App\Models\Monitoring\ServerMetric::query()->create(['node_id' => $stale->id, 'bucket_start' => $now->subMinutes(20), 'sample_count' => 10]);
+        app(ObservationIngestor::class)->ingestInternal([
+            $this->event(['application_code' => 'INSIGHTS', 'check_key' => 'node.resources', 'scope' => ['node' => 'local', 'metric' => 'process', 'process' => 'php-fpm'], 'summary' => 'local で PHP-FPM の稼働が確認できません', 'severity' => 'CRITICAL']),
+            $this->event(['application_code' => 'INSIGHTS', 'check_key' => 'node.resources', 'scope' => ['node' => 'web1', 'metric' => 'cpu_pct'], 'summary' => 'web1 CPU', 'severity' => 'ERROR']),
+        ]);
+        $this->assertSame(2, Incident::query()->whereIn('workflow_status', \App\Monitoring\Enums\WorkflowStatus::unresolvedValues())->count());
+
+        $c = Livewire::test(Rules::class)->set('tab', 'nodes');
+        $c->callAction('deleteNode', ['reason' => '受信中'], ['id' => $live->id]);
+        $this->assertSame('error', $c->get('flashLevel'), '受信中のノードは削除できない');
+        $this->assertNotNull(\App\Models\Monitoring\Node::query()->find($live->id));
+
+        $c->callAction('deleteNode', ['reason' => '名前変更前の残骸'], ['id' => $stale->id])->assertHasNoActionErrors();
+        $this->assertSame('ok', $c->get('flashLevel'));
+        $this->assertNull(\App\Models\Monitoring\Node::query()->where('node_code', 'local')->first());
+        $this->assertSame(0, \App\Models\Monitoring\ServerMetric::query()->where('node_id', $stale->id)->count());
+        $closed = Incident::query()->where('scope_json->node', 'local')->sole();
+        $this->assertSame('CLOSED', $closed->workflow_status->value);
+        $this->assertSame('RECOVERED', $closed->observation_state->value);
+        $this->assertSame(1, Incident::query()->whereIn('workflow_status', \App\Monitoring\Enums\WorkflowStatus::unresolvedValues())->count(), '他ノードの案件は残る');
+        $this->assertSame(1, \App\Models\Monitoring\AuditEvent::query()->where('action', 'node.delete')->count());
     }
 }

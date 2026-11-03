@@ -77,7 +77,8 @@
                         x-on:click="(() => { const h = document.documentElement; const t = h.dataset.theme === 'light' ? 'dark' : 'light'; h.dataset.theme = t; h.classList.toggle('dark', t === 'dark'); try { localStorage.setItem('sakemaru-monitor-theme-v2', t); localStorage.setItem('theme', t); } catch (e) {} })()">
                     {!! Icon::svg('sun') !!}
                 </button>
-                <a class="icon-btn {{ $s['unack'] > 0 ? 'notification-btn' : '' }}" href="{{ \App\Filament\Monitor\Pages\Incidents::getUrl(['tab' => 'unacknowledged']) }}" aria-label="未確認のエラー {{ $s['unack'] }} 件">{!! Icon::svg('bell') !!}</a>
+                @php($noticeCount = count($page->banners()) + $s['unack'])
+                <span class="notice-trigger {{ $noticeCount > 0 ? 'has-notices' : '' }}" data-count="{{ $noticeCount }}">{{ $page->noticesAction }}</span>
                 <span class="avatar" title="{{ $s['user_name'] }}">{{ $s['initials'] }}</span>
             </div>
         </header>
@@ -86,9 +87,7 @@
                 <div><h1>{{ $s['title'] }}</h1><p>{{ $s['description'] }}</p></div>
                 <div class="heading-buttons">{{ $buttons }}</div>
             </div>
-            @foreach ($page->banners() as $b)
-                <div class="banner {{ $b['level'] === 'error' ? 'error' : 'warning' }}" role="status">{!! Icon::svg('alert') !!}<span>{{ $b['text'] }}</span></div>
-            @endforeach
+            {{-- 監視基盤の警告（Webhook 未設定・未送信など）は本文に出さず、右上のベル（お知らせ）のモーダルにまとめる（v2.1） --}}
             @if ($page->flash)
                 <div class="flash {{ $page->flashLevel === 'ok' ? 'ok' : ($page->flashLevel === 'warn' ? 'warn' : 'error') }}" role="status">
                     {{ $page->flash }}
