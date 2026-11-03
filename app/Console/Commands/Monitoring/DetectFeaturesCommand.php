@@ -22,6 +22,7 @@ class DetectFeaturesCommand extends Command
     {
         $sites->sync();
         $checks->sync($sites);
+        $this->callSilently('monitor:sync-targets'); // 収集器・ノード → 監視対象台帳（推奨値の判定に使う）
         $result = $features->detect(SourceReader::fromConfig());
         $rows = [];
         foreach ($result as $key => $r) {

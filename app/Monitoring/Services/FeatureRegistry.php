@@ -329,7 +329,12 @@ class FeatureRegistry
             return [$has, $has ? $detect['reason'] : '監視対象が未登録'];
         }
         if (str_starts_with($kind, 'target:')) {
-            $has = Target::query()->where('kind', substr($kind, 7))->where('site_id', $siteId)->exists();
+            $targetKind = substr($kind, 7);
+            $has = Target::query()->where('kind', $targetKind)->where('site_id', $siteId)->exists();
+            // アプリログは、各サーバーの .env で宣言された収集器（台帳への同期前でも）があれば「登録あり」
+            if (! $has && $targetKind === 'APPLICATION_LOG') {
+                $has = \App\Models\Monitoring\Collector::query()->where('site_id', $siteId)->where('node_code', 'not like', '%@%')->exists();
+            }
 
             return [$has, $has ? $detect['reason'] : '監視対象が未登録'];
         }
