@@ -15,17 +15,19 @@ class NotificationBacklogCheck extends AbstractCheck
 {
     public function definition(): CheckDefinition
     {
-        return new CheckDefinition('monitor.notification', 'INSIGHTS', 'Slack通知の配送', 'エラー通知が期限内に配送されているか', 1, 300, 300, 'RB-09', false, false, 1, true, ['stale_seconds' => 300], ['stale_seconds']);
+        return new CheckDefinition('monitor.notification', 'INSIGHTS', 'Slack通知の配送', 'エラー通知が期限内に配送されているか', 1, 300, 300, 'RB-09', false, false, 1, true, ['stale_seconds' => 300, 'blocked_window_seconds' => 3600], ['stale_seconds', 'blocked_window_seconds']);
     }
 
     public function evaluate(CheckContext $ctx): CheckResult
     {
         $stale = (int) $ctx->config('stale_seconds', 300);
         $oldest = Notification::query()->whereIn('status', ['PENDING', 'RETRY_WAIT', 'SENDING'])->orderBy('id')->first(['id', 'created_at', 'status', 'last_error_code']);
-        $blocked = Notification::query()->where('status', 'BLOCKED')->orderByDesc('id')->limit(5)->get(['id', 'last_http_status', 'last_error_code']);
+        // 配送不可は直近の分だけを見る（経路を設定した後に、過去の配送不可が残っていても案件が消えないのを防ぐ）
+        $window = (int) $ctx->config('blocked_window_seconds', 3600);
+        $blocked = Notification::query()->where('status', 'BLOCKED')->where('created_at', '>=', $ctx->nowUtc->subSeconds($window))->orderByDesc('id')->limit(5)->get(['id', 'last_http_status', 'last_error_code']);
         $obs = [];
         if ($blocked->isNotEmpty()) {
-            $obs[] = Observation::violation('配送不可（BLOCKED）の通知が存在します。通知経路の設定を確認してください。', ['queue' => 'blocked'], null, ['blocked_sample' => $blocked->count()], ['samples' => $blocked->toArray()], 'MONITOR_NOTIFICATION_BLOCKED');
+            $obs[] = Observation::violation('直近 '.intdiv($window, 60).' 分に配送不可（BLOCKED）になった通知があります。通知経路の設定を確認してください。', ['queue' => 'blocked'], null, ['blocked_sample' => $blocked->count()], ['samples' => $blocked->toArray()], 'MONITOR_NOTIFICATION_BLOCKED');
         } else {
             $obs[] = Observation::healthy('配送不可の通知はありません。', ['queue' => 'blocked']);
         }

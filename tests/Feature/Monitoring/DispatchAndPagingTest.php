@@ -228,4 +228,19 @@ class DispatchAndPagingTest extends MonitoringTestCase
         $this->assertSame('VIOLATION', $stale->outcome->value);
         $this->assertStringContainsString('RETRY_WAIT / http_500', $stale->summary);
     }
+
+    /** 経路を設定した後、過去の配送不可（BLOCKED）が残っていても monitor.notification は直近 1 時間だけを見る。 */
+    public function test_notification_backlog_check_ignores_old_blocked_notifications(): void
+    {
+        app(ObservationIngestor::class)->ingestInternal([$this->event()]);
+        $i = Incident::sole();
+        Notification::query()->delete();
+        Notification::query()->create(['incident_id' => $i->id, 'generation' => 1, 'notification_key' => 'old-blocked', 'kind' => 'NEW', 'route_key' => 'error_channel', 'severity' => 'ERROR', 'status' => 'BLOCKED', 'last_error_code' => 'route_not_configured', 'available_at' => now('UTC')->subHours(3), 'created_at' => now('UTC')->subHours(3)]);
+        $check = new \App\Monitoring\Checks\Monitor\NotificationBacklogCheck;
+        $ctx = fn () => new \App\Monitoring\Services\CheckContext(\App\Monitoring\Services\SourceReader::fromConfig(), CarbonImmutable::now('UTC'), $check->definition()->defaultConfig);
+        $blocked = fn ($r) => collect($r->observations)->first(fn ($o) => $o->scope === ['queue' => 'blocked']);
+        $this->assertSame('HEALTHY', $blocked($check->evaluate($ctx()))->outcome->value, '3 時間前の配送不可は見ない');
+        Notification::query()->create(['incident_id' => $i->id, 'generation' => 1, 'notification_key' => 'new-blocked', 'kind' => 'NEW', 'route_key' => 'error_channel', 'severity' => 'ERROR', 'status' => 'BLOCKED', 'last_error_code' => 'route_not_configured', 'available_at' => now('UTC'), 'created_at' => now('UTC')]);
+        $this->assertSame('VIOLATION', $blocked($check->evaluate($ctx()))->outcome->value);
+    }
 }

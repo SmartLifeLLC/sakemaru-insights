@@ -381,4 +381,25 @@ class Rules extends MonitorPage
                 $this->run(fn () => app(RuleService::class)->deleteNode($n, $this->actor(), (string) $data['reason']), 'ノード登録 '.$n->node_code.' を削除しました。');
             });
     }
+
+    public function applyRecommendedAction(): Action
+    {
+        $pending = fn () => Feature::query()->whereNotNull('recommended_enabled')->whereColumn('recommended_enabled', '!=', 'enabled')->get();
+
+        return Action::make('applyRecommended')->label(fn () => '推奨をすべて適用（'.$pending()->count().' 件）')->color('primary')->icon('heroicon-o-check-circle')
+            ->visible(fn () => $this->canManage())->disabled(fn () => $pending()->isEmpty())
+            ->modalHeading('推奨値をすべての機能に適用する')
+            ->modalDescription(fn () => '「要確認」の機能を推奨どおりに切り替えます: ON にする '.$pending()->where('recommended_enabled', true)->map(fn ($f) => $f->display_name)->implode('・').(($off = $pending()->where('recommended_enabled', false))->isNotEmpty() ? ' ／ OFF にする '.$off->map(fn ($f) => $f->display_name)->implode('・') : '').'。アプリログ・HTTP 死活は監視対象を登録すると推奨 ON になります。')
+            ->modalSubmitActionLabel('適用する')->modalCancelActionLabel('適用せず閉じる')->extraModalWindowAttributes(['class' => 'incoming-detail-modal'])->modalWidth('2xl')
+            ->schema([$this->reasonField()])
+            ->action(function (array $data) {
+                $r = null;
+                $this->run(function () use ($data, &$r) {
+                    $r = app(FeatureRegistry::class)->applyRecommended($this->actor(), (string) $data['reason']);
+                }, '推奨値を適用しました。');
+                if ($r !== null && $this->flashLevel === 'ok') {
+                    $this->flash = '推奨値を適用しました: ON '.count($r['enabled']).' 件 / OFF '.count($r['disabled']).' 件。';
+                }
+            });
+    }
 }

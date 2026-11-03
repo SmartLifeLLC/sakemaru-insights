@@ -338,4 +338,24 @@ class PageActionsTest extends MonitoringTestCase
         config()->set('monitoring.permissions', ['monitor.view' => ['*'], 'monitor.respond' => ['nobody@example.com']]);
         Livewire::test(Incidents::class)->assertActionHidden('bulk');
     }
+
+    /** 華 本番の初期設定: 検出済みの推奨値をボタン 1 つで全機能に適用できる（未判定は触らない・監査あり）。 */
+    public function test_apply_recommended_turns_on_detected_features_at_once(): void
+    {
+        $this->bootRegistries();
+        $this->actingAs($this->user());
+        \App\Models\Monitoring\Feature::query()->whereIn('feature_key', ['wms.jx', 'wms.auto_order', 'core.stats'])->update(['enabled' => false, 'recommended_enabled' => true, 'recommended_reason' => '直近に実行あり']);
+        \App\Models\Monitoring\Feature::query()->where('feature_key', 'wms.http')->update(['enabled' => true, 'recommended_enabled' => false, 'recommended_reason' => '監視対象が未登録']);
+        \App\Models\Monitoring\Feature::query()->where('feature_key', 'wms.queue')->update(['enabled' => false, 'recommended_enabled' => null]);
+        $c = Livewire::test(Rules::class);
+        $c->callAction('applyRecommended', ['reason' => '華様 本番: 使用中の機能を監視'])->assertHasNoActionErrors();
+        $this->assertSame('ok', $c->get('flashLevel'));
+        $this->assertStringContainsString('ON 3 件 / OFF 1 件', (string) $c->get('flash'));
+        $on = \App\Models\Monitoring\Feature::query()->whereIn('feature_key', ['wms.jx', 'wms.auto_order', 'core.stats'])->pluck('enabled')->all();
+        $this->assertSame([true, true, true], array_map(fn ($v) => (bool) $v, $on));
+        $this->assertFalse((bool) \App\Models\Monitoring\Feature::query()->where('feature_key', 'wms.http')->sole()->enabled);
+        $this->assertFalse((bool) \App\Models\Monitoring\Feature::query()->where('feature_key', 'wms.queue')->sole()->enabled, '未判定は触らない');
+        $this->assertSame(4, \App\Models\Monitoring\AuditEvent::query()->whereIn('action', ['feature.enable', 'feature.disable'])->count());
+        Livewire::test(Rules::class)->assertActionDisabled('applyRecommended');
+    }
 }

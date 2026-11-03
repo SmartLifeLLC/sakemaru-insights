@@ -413,4 +413,25 @@ class FeatureRegistry
 
         return $check;
     }
+
+    /**
+     * 検出済みの推奨値を設定へ反映する（推奨 ON → ON、推奨 OFF → OFF。未判定は触らない）。顧客の初期設定・画面の「推奨をすべて適用」用。
+     *
+     * @param  array{id:int|null,name:string}  $actor
+     * @return array{enabled:string[],disabled:string[]} 変更した feature_key
+     */
+    public function applyRecommended(array $actor, string $reason): array
+    {
+        $changed = ['enabled' => [], 'disabled' => []];
+        foreach (Feature::query()->whereNotNull('recommended_enabled')->orderBy('id')->get() as $f) {
+            if ((bool) $f->enabled === (bool) $f->recommended_enabled) {
+                continue;
+            }
+            $this->setEnabled($f, (bool) $f->recommended_enabled, $actor, $reason.'（推奨: '.$f->recommended_reason.'）');
+            $changed[$f->recommended_enabled ? 'enabled' : 'disabled'][] = $f->feature_key;
+        }
+        $this->recomputeCoverage();
+
+        return $changed;
+    }
 }
