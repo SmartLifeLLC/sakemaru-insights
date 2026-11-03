@@ -259,4 +259,25 @@ abstract class MonitorPage extends Page
                 }
             });
     }
+
+    // ------------------------------------------------------------------ お知らせ（監視基盤の警告・未確認エラー）: 本文のバナーではなくベルのモーダルに出す
+
+    public function noticesAction(): Action
+    {
+        $banners = $this->banners();
+        $unack = (int) ($this->shell()['unack'] ?? 0);
+        $count = count($banners) + $unack;
+
+        return Action::make('notices')->iconButton()->icon('heroicon-o-bell')->color('gray')
+            ->label('お知らせ')->tooltip($count > 0 ? "お知らせ {$count} 件" : 'お知らせはありません')
+            ->badge($count > 0 ? (string) $count : null)->badgeColor(collect($banners)->contains(fn ($b) => $b['level'] === 'error') ? 'danger' : 'warning')
+            ->modalHeading('お知らせ')->modalDescription('監視基盤の設定・配送の警告と、未確認のエラーです。')
+            ->modalSubmitAction(false)->modalCancelActionLabel('閉じる')->extraModalWindowAttributes(['class' => 'incoming-detail-modal'])->modalWidth('2xl')
+            ->modalContent(fn () => view('monitor.partials.notices', [
+                'banners' => $this->banners(),
+                'unack' => $unack,
+                'incidentsUrl' => \App\Filament\Monitor\Pages\Incidents::getUrl(['tab' => 'unacknowledged']),
+                'notificationsUrl' => \App\Filament\Monitor\Pages\Notifications::getUrl(),
+            ]));
+    }
 }

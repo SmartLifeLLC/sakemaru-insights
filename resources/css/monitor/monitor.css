@@ -122,3 +122,7 @@ td{font-size:13px;padding:9px 14px}
 /* 上部の状態ボタン: 運用中＝緑、停止中＝赤（Filament の色に頼らず固定） */
 .topbar .fi-btn.alert-state-running,.topbar .fi-btn.alert-state-running:hover{background:#16a34a;border-color:#15803d;color:#fff}
 .topbar .fi-btn.alert-state-paused,.topbar .fi-btn.alert-state-paused:hover{background:#dc2626;border-color:#b91c1c;color:#fff}
+/* お知らせ（ベル）: バッジ付きアイコンボタン。モーダル内に警告を並べる */
+.notice-trigger{display:inline-flex;position:relative}.notice-trigger .fi-icon-btn{width:34px;height:34px;color:var(--muted)}.notice-trigger .fi-icon-btn:hover{background:var(--hover);color:var(--text)}
+.notice-trigger .fi-badge{font-size:10px;min-width:16px;height:16px;line-height:16px;padding:0 4px}
+.notices .banner{margin-bottom:8px}.notices a.banner{cursor:pointer}.notices a.banner:hover{filter:brightness(.97)}.notices .notice-go{margin-left:auto;color:var(--muted)}
