@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -25,6 +26,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // 本番は常に HTTPS（WMS と同じ）。ELB 配下で生成される資産・リンク URL を https にする
+        if ($this->app->environment('production')) {
+            URL::forceScheme('https');
+        }
     }
 }
