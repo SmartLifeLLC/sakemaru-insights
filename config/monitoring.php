@@ -308,8 +308,8 @@ return [
     ],
 
     'ui' => [
-        'page_size_default' => \App\Constants\TableDefaults::PAGINATION_PAGE_OPTION,
-        'page_size_options' => [25, 50, 100],
+        'page_size_default' => 20,
+        'page_size_options' => [20, 50, 100],
         'page_size_max' => 100,
         'cursor_ttl_seconds' => 1800,
         'default_log_window_hours' => 24,

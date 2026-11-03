@@ -34,6 +34,7 @@
             shown(w) { return ! this.hidden.includes(w) },
          }" x-on:open-widgets.window="picker = true" wire:poll.{{ (int) config('monitoring.ui.auto_refresh_seconds', 60) }}s.visible>
 
+        <div class="dash-top">{{-- 重大障害の帯と KPI 4 枚は固定。以降がスクロール --}}
         @if ($d['critical']->isNotEmpty())
             <div class="alert-strip" role="alert">
                 {!! Icon::svg('alert') !!}
@@ -67,6 +68,7 @@
                 <div class="kpi-meta">送信 {{ number_format($k['notifications_delivered']) }} / 失敗 <span class="{{ $k['notifications_failed'] ? 'bad' : '' }}">{{ number_format($k['notifications_failed']) }}</span></div>
             </div>
         </div>
+        </div>{{-- /dash-top --}}
 
         <div class="main-grid">
             <section class="panel" x-show="shown('trend')">

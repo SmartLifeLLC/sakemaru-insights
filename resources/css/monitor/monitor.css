@@ -126,3 +126,33 @@ td{font-size:13px;padding:9px 14px}
 .notice-trigger{display:inline-flex;position:relative}.notice-trigger .fi-icon-btn{width:34px;height:34px;color:var(--muted)}.notice-trigger .fi-icon-btn:hover{background:var(--hover);color:var(--text)}
 .notice-trigger .fi-badge{font-size:10px;min-width:16px;height:16px;line-height:16px;padding:0 4px}
 .notices .banner{margin-bottom:8px}.notices a.banner{cursor:pointer}.notices a.banner:hover{filter:brightness(.97)}.notices .notice-go{margin-left:auto;color:var(--muted)}
+/* ---- v2.1 スクロール制御（設計仕様 page-scroll-control / table-tabs に準拠）: 上部バー・見出し・ツールバーは固定し、本文だけスクロール。表は枠内スクロール＋ヘッダー固定 ---- */
+html.mon-root,html.mon-root body{overflow:hidden;height:100%}
+.mon-body{height:100vh;height:100dvh;overflow:hidden}
+.app-shell{height:100%;display:flex;flex-direction:column;min-width:0}
+main{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;padding-bottom:0;width:100%}
+.page-scroll{flex:1;min-height:0;overflow:auto;padding-bottom:12px;scrollbar-gutter:stable}
+.footer{margin:0;padding:6px 24px;flex-shrink:0;font-size:11px}
+/* 一覧ページ: 表の枠が残りの高さいっぱいに広がり、行だけスクロール。ヘッダー行は固定 */
+.page-scroll>.table-panel{height:100%;display:flex;flex-direction:column;margin-bottom:0}
+.page-scroll>.table-panel>.table-scroll{flex:1;min-height:0;overflow:auto}
+.table-scroll thead th{position:sticky;top:0;z-index:5}
+.page-scroll>.table-panel>.pager{flex-shrink:0}
+/* ダッシュボード: 重大障害の帯と KPI 4 枚は固定 */
+.dash-top{position:sticky;top:0;z-index:6;background:var(--bg);padding-bottom:4px;margin-bottom:12px}
+.dash-top .kpi-grid{margin-bottom:0}.dash-top .alert-strip{margin-bottom:10px}
+/* 監視ルールなどのタブ: 固定 */
+.page-scroll>.tabs,.page-scroll>div>.tabs{position:sticky;top:0;z-index:6;background:var(--bg);margin-top:0;padding-top:2px}
+.kpi{min-height:0;padding:12px 16px}.kpi-value{font-size:26px}.kpi-meta{margin-top:6px}.kpi-spark{bottom:10px}
+@media(max-width:760px){html.mon-root,html.mon-root body{overflow:auto;height:auto}.mon-body{height:auto;overflow:visible}main{overflow:visible;display:block}.page-scroll{overflow:visible}.page-scroll>.table-panel{height:auto}}
+/* 監視ルール（サービスと機能）: ON/OFF ボタンが状態そのもの。監視項目は折りたたみ */
+.rule-legend{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--muted);margin:8px 0 12px}
+.rule-legend b{color:var(--text)}.rule-legend-keys{display:flex;gap:8px;align-items:center}
+.onoff-demo{display:inline-block;min-width:38px;text-align:center;font-size:11px;font-weight:700;padding:1px 8px;border-radius:999px;border:1px solid}
+.onoff-demo.on{color:#15803d;background:#dcfce7;border-color:#86efac}.onoff-demo.off{color:#6b7280;background:#f3f4f6;border-color:#d1d5db}
+.tree .fi-btn.onoff{min-width:52px;font-weight:700;border-radius:999px;padding:3px 12px}
+.tree .fi-btn.onoff.is-off{background:#f3f4f6;color:#6b7280;border:1px solid #d1d5db}[data-theme=dark] .tree .fi-btn.onoff.is-off{background:var(--panel2);color:var(--muted);border-color:var(--border)}
+.tree-row{grid-template-columns:1fr auto;padding:9px 0}.tree-row .feature-name{font-size:14px;font-weight:600}.tree-row.level-2{font-size:12px;color:var(--muted)}.tree-row b{font-size:15px}
+.tree-feature{border-top:1px dashed var(--border-soft)}.check-toggle{margin-left:8px}
+.chip{display:inline-block;font-size:11px;padding:1px 8px;border-radius:999px;background:var(--panel2);color:var(--muted);border:1px solid var(--border);margin-left:6px}.chip.review{background:#fef3c7;color:#92400e;border-color:#fcd34d}
+[x-cloak]{display:none!important}
