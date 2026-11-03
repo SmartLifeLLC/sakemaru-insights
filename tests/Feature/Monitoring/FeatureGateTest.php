@@ -163,6 +163,11 @@ class FeatureGateTest extends MonitoringTestCase
         $this->assertTrue($r['wms.queue']['recommended']);
         $this->assertFalse($r['search.sync']['recommended'], 'テーブルが無ければ推奨 OFF');
         $this->assertFalse($r['core.app_log']['recommended'], 'ログ収集対象が未登録');
+        // 各サーバーの .env で宣言された収集器（台帳への同期前）があれば、アプリログは推奨 ON
+        \App\Models\Monitoring\Collector::query()->create(['collector_uuid' => '7c7a2f6e-2222-4e8f-9b7e-000000000009', 'site_id' => $this->feature('core.app_log')->site_id, 'node_code' => 'hana-prod-1', 'credential_ref' => 'X']);
+        $r = $this->features->detect(SourceReader::fromConfig());
+        $this->assertTrue($r['core.app_log']['recommended'], '収集器が登録されていれば推奨 ON');
+        $this->assertFalse($r['wms.app_log']['recommended']);
 
         // 設定値は変えない、食い違いは要確認
         $f = $this->feature('core.stats');
