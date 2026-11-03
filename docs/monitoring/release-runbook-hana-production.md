@@ -91,7 +91,7 @@ php artisan monitor:preflight          # 接続分離・権限・v2 テーブル
   ```
   Slack Webhook・SMTP・Twilio は **画面から登録**する（`.env` に書いてもよいが画面の設定が優先）。
 - [ ] `.env`（**他のノード**）: `MONITOR_DEPLOYMENT_ID` / `MONITOR_NODE_CODE` / `MONITOR_NODE_ROLE` / `MONITOR_NODE_DISPLAY_NAME` / `MONITOR_NODE_PROCESSES` / `MONITOR_INGEST_URL` / `MONITOR_METRICS_SECRET`。`MONITOR_CHECK_OWNER_NODE` は owner と同じ値（別名を書くと拒否されるだけで害はない）。
-- [ ] 収集器（アプリログ）を使う場合: `config/monitoring.php` の `collectors` にサイト・ノード・ログの絶対パス・鍵の env 名を登録し、鍵 `MONITOR_COLLECTOR_SECRET_<APP>_<NODE>` を各 `.env` に置く。
+- [ ] 収集器（アプリログ）: 各サーバーの `.env` に `MONITOR_LOG_COLLECTORS="WMS=/var/www/hana/sakemaru-wms/storage/logs/laravel*.log;TRADE=…"`（そのサーバーにあるアプリのログだけ。ワイルドカードで日次ログに対応）。同一ホストで取り込むので署名鍵は不要（別サーバーへ送る `MONITOR_INGEST_URL` を使う場合のみ `MONITOR_COLLECTOR_SECRET_<APP>_<NODE>`）。`config:cache` 後に `monitor:preflight` で readable=yes を確認し、`sakemaru-monitor-collect@hana-prod.timer` を有効化。
 
 ### 2.4 migration（owner ノード、`ins_monitor_*` だけ）
 ```bash

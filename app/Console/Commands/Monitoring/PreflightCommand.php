@@ -119,10 +119,21 @@ class PreflightCommand extends Command
         // 収集器
         $cols = (array) config('monitoring.collectors');
         $this->line('collectors: '.count($cols));
+        $remote = (bool) config('monitoring.collector.ingest_url');
         foreach ($cols as $c) {
             $secret = \App\Monitoring\Support\Env::get($c['secret_env'] ?? null) !== null;
-            foreach ((array) ($c['log_files'] ?? []) as $f) {
-                $this->line(sprintf('  %s@%s %s readable=%s secret=%s', $c['application_code'], $c['node_code'], $f, is_readable($f) ? 'yes' : 'NO', $secret ? 'set' : 'MISSING'));
+            $secretLabel = $remote ? ($secret ? 'set' : 'MISSING') : '不要（同一ホスト直接取込）';
+            foreach ((array) ($c['log_files'] ?? []) as $pattern) {
+                $files = \App\Monitoring\Collectors\FileLogCollector::expandLogFiles([$pattern]);
+                if ($files === []) {
+                    $this->line(sprintf('  %s@%s %s readable=NO（該当ファイルなし・直近 2 日に更新なし） secret=%s', $c['application_code'], $c['node_code'], $pattern, $secretLabel));
+                    $ok = false;
+                }
+                foreach ($files as $f) {
+                    $readable = is_readable($f);
+                    $ok = $ok && $readable;
+                    $this->line(sprintf('  %s@%s %s readable=%s secret=%s', $c['application_code'], $c['node_code'], $f, $readable ? 'yes' : 'NO', $secretLabel));
+                }
             }
         }
         if (! $sites->isProduction() && str_contains(strtolower((string) config('monitoring.notification.routes.error_channel.display_name', '')), 'prod')) {

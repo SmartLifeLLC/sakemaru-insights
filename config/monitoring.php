@@ -13,7 +13,7 @@
 */
 
 $collectors = [
-    // 例:
+    // 直書きの例（通常は下の MONITOR_LOG_COLLECTORS で各サーバーの .env から宣言する）:
     // [
     //     'collector_uuid' => '7c7a2f6e-1111-4e8f-9b7e-000000000001',
     //     'application_code' => 'TRADE',
@@ -23,6 +23,29 @@ $collectors = [
     //     'parser' => 'laravel',
     // ],
 ];
+
+// .env からの収集器宣言（このサーバーにあるアプリログ）。形式: APP=/abs/path[,/abs/path2];APP2=/abs/path
+// 例: MONITOR_LOG_COLLECTORS="WMS=/var/www/hana/sakemaru-wms/storage/logs/laravel*.log;TRADE=/var/www/hana/sakemaru-trade/storage/logs/laravel*.log"
+// パスはワイルドカード可（日次ログ laravel-YYYY-MM-DD.log）。collector_uuid は配置 ID・ノード・アプリから決定的に生成。
+// 署名鍵 MONITOR_COLLECTOR_SECRET_<APP>_<NODE> は別サーバーへ送る（MONITOR_INGEST_URL）場合だけ必要。
+$__node = (string) env('MONITOR_NODE_CODE', 'local');
+$__dep = (string) env('MONITOR_DEPLOYMENT_ID', 'local-insights');
+foreach (array_filter(array_map('trim', explode(';', (string) env('MONITOR_LOG_COLLECTORS', '')))) as $__decl) {
+    [$__app, $__paths] = array_pad(explode('=', $__decl, 2), 2, '');
+    $__app = strtoupper(trim($__app));
+    $__paths = array_values(array_filter(array_map('trim', explode(',', $__paths))));
+    if ($__app === '' || $__paths === []) {
+        continue;
+    }
+    $collectors[] = [
+        'collector_uuid' => \App\Monitoring\Support\Uuid::v5(\App\Monitoring\Support\Uuid::v5(\App\Monitoring\Support\Uuid::NS_MONITOR, 'sakemaru-monitor-log'), $__dep.'|'.$__node.'|'.$__app),
+        'application_code' => $__app,
+        'node_code' => $__node,
+        'secret_env' => 'MONITOR_COLLECTOR_SECRET_'.$__app.'_'.strtoupper(preg_replace('/[^A-Za-z0-9]+/', '_', $__node)),
+        'log_files' => $__paths,
+        'parser' => 'laravel',
+    ];
+}
 
 // config:cache 後は env() が使えないため、秘密値の env 参照をここで解決して config に写す（App\Monitoring\Support\Env::get が参照）。
 $secretEnvNames = array_merge(

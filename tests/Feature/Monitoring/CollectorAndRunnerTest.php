@@ -210,4 +210,41 @@ class CollectorAndRunnerTest extends MonitoringTestCase
         $b = app(SiteRegistry::class)->internalCollector('checker');
         $this->assertSame($a->id, $b->id);
     }
+
+    /** 華 本番: 日次ログ（laravel-YYYY-MM-DD.log）をワイルドカードで追い、直近 2 日に更新のあるファイルだけを読む。.env の MONITOR_LOG_COLLECTORS 宣言からも収集器ができる。 */
+    public function test_daily_log_glob_and_env_declared_collectors(): void
+    {
+        $today = now('Asia/Tokyo')->format('Y-m-d');
+        $old = $this->dir.'/laravel-2026-01-01.log';
+        $new = $this->dir."/laravel-{$today}.log";
+        file_put_contents($old, "[2026-01-01 10:00:00] production.ERROR: old error\n");
+        touch($old, time() - 10 * 86400);
+        file_put_contents($new, "[2026-11-02 23:00:01] production.ERROR: new error\n");
+        $this->assertSame([$new], FileLogCollector::expandLogFiles([$this->dir.'/laravel*.log']), '古い日付のファイルは対象外');
+
+        $cfg = config('monitoring.collectors')[0];
+        $cfg['log_files'] = [$this->dir.'/laravel*.log'];
+        config()->set('monitoring.collectors', [$cfg]);
+        $r = $this->collector()->collect();
+        $this->assertSame(1, $r['events']);
+
+        // .env 宣言 → config 構築（config ファイルを再評価）
+        putenv('MONITOR_LOG_COLLECTORS=WMS=/var/www/hana/sakemaru-wms/storage/logs/laravel*.log;trade=/var/www/hana/sakemaru-trade/storage/logs/laravel.log,/var/www/hana/sakemaru-trade/storage/logs/batch.log');
+        putenv('MONITOR_NODE_CODE=hana-prod-1');
+        putenv('MONITOR_DEPLOYMENT_ID=hana-prod');
+        try {
+            $built = (array) (require base_path('config/monitoring.php'))['collectors'];
+        } finally {
+            putenv('MONITOR_LOG_COLLECTORS');
+            putenv('MONITOR_NODE_CODE');
+            putenv('MONITOR_DEPLOYMENT_ID');
+        }
+        $this->assertCount(2, $built);
+        $this->assertSame(['WMS', 'TRADE'], array_column($built, 'application_code'));
+        $this->assertSame('hana-prod-1', $built[0]['node_code']);
+        $this->assertSame('MONITOR_COLLECTOR_SECRET_WMS_HANA_PROD_1', $built[0]['secret_env']);
+        $this->assertCount(2, $built[1]['log_files']);
+        $this->assertMatchesRegularExpression('/^[0-9a-f-]{36}$/', $built[0]['collector_uuid']);
+        $this->assertNotSame($built[0]['collector_uuid'], $built[1]['collector_uuid']);
+    }
 }

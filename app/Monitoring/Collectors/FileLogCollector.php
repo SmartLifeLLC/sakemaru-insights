@@ -33,7 +33,7 @@ class FileLogCollector
         $maxBytes = (int) config('monitoring.collector.read_bytes_per_second', 262144) * 30; // 1回の収集で最大30秒分
         $report = [];
 
-        foreach ((array) ($this->collectorConfig['log_files'] ?? []) as $path) {
+        foreach ($this->expandLogFiles((array) ($this->collectorConfig['log_files'] ?? [])) as $path) {
             $fileState = $state['files'][$path] ?? ['inode' => null, 'generation' => 0, 'offset' => 0, 'carry' => [], 'initialized' => false];
             if (! is_file($path) || ! is_readable($path)) {
                 $report[$path] = 'unreadable';
@@ -226,5 +226,32 @@ class FileLogCollector
         $tmp = $p.'.tmp';
         file_put_contents($tmp, CanonicalJson::encode($state), LOCK_EX);
         rename($tmp, $p);
+    }
+
+    /**
+     * log_files のワイルドカード展開。日次ログ（laravel-YYYY-MM-DD.log）は直近 2 日に更新のあるファイルだけを対象にし、古い日付を読み直さない。
+     *
+     * @param  string[]  $patterns
+     * @return string[]
+     */
+    public static function expandLogFiles(array $patterns): array
+    {
+        $out = [];
+        $recent = time() - 2 * 86400;
+        foreach ($patterns as $pattern) {
+            if (! str_contains($pattern, '*') && ! str_contains($pattern, '?')) {
+                $out[] = $pattern;
+
+                continue;
+            }
+            foreach ((array) glob($pattern, GLOB_NOSORT) as $f) {
+                if (is_file($f) && (@filemtime($f) ?: 0) >= $recent) {
+                    $out[] = $f;
+                }
+            }
+        }
+        sort($out);
+
+        return array_values(array_unique($out));
     }
 }
