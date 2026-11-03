@@ -32,7 +32,7 @@ class AutoOrderRunCheck extends BusinessCheck
         $obs = [];
         foreach ($this->dueSlots($ctx, $slots, $grace) as $slot) {
             $key = $slot['date'].':'.$slot['time'];
-            $rows = $src->select('SELECT status, COUNT(*) AS c, COUNT(DISTINCT warehouse_id) AS wh, SUM(failed_count) AS failed, SUM(generated_count) AS generated, SUM(held_count) AS held FROM wms_auto_order_runs WHERE slot_key = ? AND is_preview = 0 GROUP BY status', [$key]);
+            $rows = $src->select('SELECT status, COUNT(*) AS c, COUNT(DISTINCT warehouse_id) AS wh, SUM(failed_count) AS failed, SUM(generated_count) AS generated_total, SUM(held_count) AS held FROM wms_auto_order_runs WHERE slot_key = ? AND is_preview = 0 GROUP BY status', [$key]);
             $by = [];
             $completedWh = 0;
             $failed = 0;
@@ -43,7 +43,7 @@ class AutoOrderRunCheck extends BusinessCheck
                     $completedWh = (int) $r->wh;
                 }
                 $failed += (int) $r->failed;
-                $generated += (int) $r->generated;
+                $generated += (int) $r->generated_total;
             }
             $scope = ['business_date' => $slot['date'], 'slot' => $slot['time']];
             $metrics = ['enabled_warehouses' => $enabled, 'completed_warehouses' => $completedWh, 'generated' => $generated, 'failed' => $failed] + $by;
