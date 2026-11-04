@@ -542,4 +542,29 @@ class IncidentService
         IncidentEvent::query()->where('incident_id', $incident->id)->update(['expires_at' => null]);
         Notification::query()->where('incident_id', $incident->id)->update(['expires_at' => null]);
     }
+
+    /**
+     * 監視システム由来（MONITOR_SYSTEM）の案件の自動復旧。チェックの HEALTHY が無い種類（休止・配送不可など）は、原因が解消した時点で呼ぶ。
+     * 同じ error_code・scope の指紋で未復旧の案件を RECOVERED にし、復旧通知を積む。該当が無ければ何もしない。
+     */
+    public function recordSelfRecovered(string $errorCode, array $scope, string $reason, ?string $nodeCode = null): ?Incident
+    {
+        $fp = Fingerprint::compute('INSIGHTS', null, $errorCode, Fingerprint::normalizeScope($scope), null, $nodeCode);
+        $incident = Incident::query()->where('fingerprint', $fp)->first();
+        if (! $incident || $incident->observation_state === ObservationState::RECOVERED || ! $incident->workflow_status->isOpenish()) {
+            return $incident;
+        }
+        $now = CarbonImmutable::now('UTC');
+        $before = ['observation_state' => $incident->observation_state->value];
+        $incident->observation_state = ObservationState::RECOVERED;
+        $incident->recovered_at = $now;
+        $incident->last_verified_at = $now;
+        $incident->next_reminder_at = null;
+        $incident->version += 1;
+        $incident->save();
+        $this->event($incident, 'RECOVERED', null, $reason, $before, ['observation_state' => 'RECOVERED'], 'recov:'.$fp.':g'.$incident->generation);
+        $this->queue->enqueue($incident, NotificationKind::RECOVERY);
+
+        return $incident;
+    }
 }

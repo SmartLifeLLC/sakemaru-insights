@@ -182,6 +182,9 @@ class NotificationDispatcher
         }
         $r = $this->mail->send($subject, $text);
         $result = ['ok' => $r['ok'], 'status' => $r['ok'] ? 250 : ($r['permanent'] ? 550 : null), 'retry_after' => null, 'error' => $r['error']];
+        if ($r['ok']) {
+            $this->selfMonitor->recovered('MONITOR_NOTIFICATION_BLOCKED', ['route' => NotificationQueue::ROUTE_MAIL], 'メール通知が配送できた');
+        }
         foreach ($notifications as $n) {
             $this->recordAttempt($n, $batch, $result, $now);
             if ($r['ok']) {
@@ -353,6 +356,9 @@ class NotificationDispatcher
                 $this->retry($n, $this->nextRetryAt($n, $now), $result['status'], $result['error'] ?? 'transient', $now);
                 $stats['retried']++;
             }
+        }
+        if ($result['ok']) {
+            $this->selfMonitor->recovered('MONITOR_NOTIFICATION_BLOCKED', ['route' => $routeKey], 'Slack 通知経路 '.$routeKey.' が配送できた');
         }
         if ($batch) {
             $batch->status = $result['ok'] ? 'DELIVERED' : 'FAILED';

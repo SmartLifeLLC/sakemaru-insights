@@ -247,4 +247,20 @@ class CollectorAndRunnerTest extends MonitoringTestCase
         $this->assertMatchesRegularExpression('/^[0-9a-f-]{36}$/', $built[0]['collector_uuid']);
         $this->assertNotSame($built[0]['collector_uuid'], $built[1]['collector_uuid']);
     }
+
+    /** 連続失敗で休止になったチェックが再び成功したら、休止の自己監視案件（MONITOR_DB_BUDGET_EXCEEDED）は自動で復旧する（華 本番で残り続けた回帰）。 */
+    public function test_check_recovering_from_backoff_recovers_its_self_monitoring_incident(): void
+    {
+        config()->set('monitoring.deployment.check_owner_node', config('monitoring.deployment.node_code'));
+        $check = CheckModel::query()->where('check_key', 'monitor.storage')->sole();
+        app(\App\Monitoring\Services\SelfMonitor::class)->record('MONITOR_DB_BUDGET_EXCEEDED', \App\Monitoring\Enums\Severity::ERROR, 'INSIGHTS の monitor.storage が3回連続で失敗。15分休止します。', ['check' => 'monitor.storage'], [], ['consecutive_failures' => 3], 'RB-08');
+        $inc = \App\Models\Monitoring\Incident::query()->where('error_code', 'MONITOR_DB_BUDGET_EXCEEDED')->sole();
+        $this->assertSame('ACTIVE', $inc->observation_state->value);
+        $check->forceFill(['consecutive_failures' => 3, 'paused_until' => null])->save();
+
+        app(CheckRunner::class)->run(null, ['INSIGHTS:monitor.storage'], true);
+        $this->assertSame(0, (int) $check->refresh()->consecutive_failures);
+        $this->assertSame('RECOVERED', $inc->refresh()->observation_state->value);
+        $this->assertTrue(\App\Models\Monitoring\Notification::query()->where('incident_id', $inc->id)->where('kind', 'RECOVERY')->exists());
+    }
 }

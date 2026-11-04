@@ -163,6 +163,12 @@ class CheckRunner
             $worst = $this->worstOutcome($observations);
             $this->finishRun($run, $attempt, $source, $qBefore, ExecutionStatus::SUCCEEDED, $worst, null, $result->verificationComplete, $result->watermarkHash, $result->checkpoint);
             $this->emit($model, $def, $run, $observations, $now);
+            if ((int) $model->consecutive_failures > 0) {
+                // 連続失敗（休止）からの回復: 休止の自己監視案件を復旧にする
+                foreach (['MONITOR_DB_BUDGET_EXCEEDED', 'MONITOR_SOURCE_UNAVAILABLE'] as $code) {
+                    $this->selfMonitor->recovered($code, ['check' => $model->check_key], $model->check_key.' が正常に完了（連続失敗 '.$model->consecutive_failures.' 回から回復）');
+                }
+            }
             $model->consecutive_failures = 0;
             $model->last_completed_at = CarbonImmutable::now('UTC');
             $model->last_outcome = $worst->value;

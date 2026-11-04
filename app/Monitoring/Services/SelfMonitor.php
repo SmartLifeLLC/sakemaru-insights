@@ -40,6 +40,16 @@ class SelfMonitor
         }
     }
 
+    /** 原因が解消した監視システム案件を復旧にする（休止の解除・配送の回復など） */
+    public function recovered(string $errorCode, array $scope, string $reason, bool $nodeScoped = false): void
+    {
+        try {
+            app(IncidentService::class)->recordSelfRecovered($errorCode, $scope, $reason, $nodeScoped ? $this->sites->nodeCode() : null);
+        } catch (\Throwable $e) {
+            $this->emergency($errorCode, '復旧の記録に失敗: '.$reason, $e);
+        }
+    }
+
     public function notificationBlocked(string $routeKey, string $reason): void
     {
         $label = match ($routeKey) {
