@@ -446,8 +446,8 @@ class ResourcesTest extends MonitoringTestCase
         $this->assertSame(['apache' => 0, 'php-fpm' => 0, 'supervisor' => 0, 'cron' => 0], (new ProcReader($this->tmp.'/none'))->processes((array) config('monitoring.resources.processes')));
 
         $cfg = (array) config('monitoring.resources');
-        $this->assertSame(['apache', 'php-fpm', 'supervisor'], ResourceSampler::requiredProcesses($cfg, 'web'));
-        $this->assertSame(['php-fpm', 'supervisor'], ResourceSampler::requiredProcesses($cfg, 'batch'));
+        $this->assertSame(['apache', 'supervisor', 'cron'], ResourceSampler::requiredProcesses($cfg, 'web'), 'mod_php 構成が既定: php-fpm は含めない');
+        $this->assertSame(['supervisor', 'cron'], ResourceSampler::requiredProcesses($cfg, 'batch'));
         $cfg['required_processes'] = ['supervisor', 'unknown'];
         $this->assertSame(['supervisor'], ResourceSampler::requiredProcesses($cfg, 'web'), '.env の指定が優先、未知のキーは無視');
     }
@@ -516,6 +516,26 @@ class ResourcesTest extends MonitoringTestCase
             $run();
         }
         $this->assertSame('RECOVERED', $i->fresh()->observation_state->value);
+
+        // 必須プロセスから外したら（例: mod_php 構成で php-fpm を外す）、その案件は「監視対象外」として復旧する（華 本番の回帰）
+        $this->travel(2)->minutes();
+        $ts = now()->getTimestamp();
+        $node->latest_json = ['ts' => $ts, 'cores' => 2, 'current' => ['cpu' => 10], 'disks' => [], 'recent' => ['t' => []],
+            'processes' => ['apache' => ['count' => 4, 'required' => true, 'missing_since' => null], 'php-fpm' => ['count' => 0, 'required' => true, 'missing_since' => $ts - 600]]];
+        $node->save();
+        $run();
+        $fpm = Incident::query()->where('check_key', 'node.resources')->where('scope_json->process', 'php-fpm')->sole();
+        $this->assertSame('ACTIVE', $fpm->observation_state->value);
+        $node->latest_json = ['ts' => $ts + 60, 'cores' => 2, 'current' => ['cpu' => 10], 'disks' => [], 'recent' => ['t' => []],
+            'processes' => ['apache' => ['count' => 4, 'required' => true, 'missing_since' => null]]];
+        $node->save();
+        foreach ([1, 2, 3] as $n) {
+            $this->travel(2)->minutes();
+            $node->latest_json = array_merge($node->latest_json, ['ts' => now()->getTimestamp()]);
+            $node->save();
+            $run();
+        }
+        $this->assertSame('RECOVERED', $fpm->fresh()->observation_state->value, '必須から外れた分は復旧');
     }
 
     public function test_ingest_keeps_only_known_processes(): void

@@ -76,7 +76,7 @@ php artisan monitor:preflight          # 接続分離・権限・v2 テーブル
   MONITOR_CLIENT_NAME=華
   MONITOR_ENVIRONMENT=production
   MONITOR_NODE_CODE=<このサーバー>          MONITOR_NODE_ROLE=web|batch
-  MONITOR_NODE_DISPLAY_NAME=<表示名>       MONITOR_NODE_PROCESSES=apache,php-fpm,supervisor
+  MONITOR_NODE_DISPLAY_NAME=<表示名>       MONITOR_NODE_PROCESSES=apache,supervisor,cron
   MONITOR_CHECK_OWNER_NODE=<このサーバー>
   MONITOR_SOURCE_DATABASE=<業務DB>  MONITOR_SOURCE_USERNAME=<SELECT専用>  MONITOR_SOURCE_PASSWORD=<…>
   MONITOR_SLACK_ERROR_CHANNEL_NAME=#<本番チャンネル>

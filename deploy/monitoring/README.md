@@ -38,7 +38,7 @@ v2 の HTTP プローブ（`http.probe`）とサーバー資源の判定（`node
 
 1. `php artisan migrate --path=database/migrations/2026_11_04_000001_create_ins_monitor_v2_tables.php`
 2. `npm run build`（`/monitor` パネルのテーマ `resources/css/monitor/monitor.css` を含む）
-3. `.env`（各サーバー）: `MONITOR_NODE_CODE` / `MONITOR_NODE_ROLE`（web/batch/db/other）/ `MONITOR_NODE_DISPLAY_NAME` / `MONITOR_NODE_PROCESSES`（必須プロセス。例 `apache,php-fpm,supervisor`）。
+3. `.env`（各サーバー）: `MONITOR_NODE_CODE` / `MONITOR_NODE_ROLE`（web/batch/db/other）/ `MONITOR_NODE_DISPLAY_NAME` / `MONITOR_NODE_PROCESSES`（必須プロセス。例 `apache,supervisor,cron`）。
    ELB の後ろでは外部からの `/up` で 1 台の停止を検知できないため、各サーバーの資源収集が Apache・PHP-FPM・supervisord の生存を /proc で 1 分ごとに確認する（5 分以上 0 件で重大）。
    別サーバーから送る場合は `MONITOR_INGEST_URL` と、同じ顧客の全ノード共通の `MONITOR_METRICS_SECRET`。
 4. `.env`（owner）: `MONITOR_PROBE_ALLOWED_HOSTS`（自サービスのホストをカンマ区切り。例 `wms.lw-hana.net,.lw-hana.net`）、
