@@ -335,9 +335,9 @@ class BusinessChecksTest extends MonitoringTestCase
         $this->assertSame('VIOLATION', $this->outcomes($this->exec($c, '2026-11-03 02:50'))['{"business_date":"2026-11-02"}'], '別の日の成功では解消しない');
         $this->sourceInsert('stats_import_runs', [['job_type' => 'daily_finalize', 'source_system' => 'core_earning', 'status' => 'succeeded', 'period_from' => '2026-11-02', 'period_to' => '2026-11-02', 'started_at' => '2026-11-03 02:06:00']]);
         $this->sourceInsert('stats_daily_buyer_trade_profits', [['stats_date' => '2026-11-02', 'finalized_at' => null]]);
-        $this->assertSame('VIOLATION', $this->outcomes($this->exec($c, '2026-11-03 02:50'))['{"business_date":"2026-11-02"}'], '確定印と部門統計が無い');
-        \Illuminate\Support\Facades\DB::connection('monitor_source')->table('stats_daily_buyer_trade_profits')->update(['finalized_at' => '2026-11-03 02:06:30']);
+        $this->assertSame('VIOLATION', $this->outcomes($this->exec($c, '2026-11-03 02:50'))['{"business_date":"2026-11-02"}'], '部門統計が無い');
         $this->sourceInsert('stats_daily_department_trade_profits', [['stats_date' => '2026-11-02']]);
+        // finalized_at が NULL でも（再集計で作り直された行）異常にしない
         $this->assertSame('HEALTHY', $this->outcomes($this->exec($c, '2026-11-03 02:50'))['{"business_date":"2026-11-02"}']);
         $this->sourceInsert('stats_import_runs', [['job_type' => 'daily_finalize', 'source_system' => 'core_earning', 'status' => 'succeeded', 'period_from' => '2026-11-03', 'period_to' => '2026-11-03', 'started_at' => '2026-11-04 02:06:00']]);
         $this->assertSame('HEALTHY', $this->outcomes($this->exec($c, '2026-11-04 02:50'))['{"business_date":"2026-11-03"}'], '売上の無い日は確定記録だけで正常');
