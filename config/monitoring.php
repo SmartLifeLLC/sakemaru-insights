@@ -192,6 +192,7 @@ return [
         'http_timeout_seconds' => 10,
         'max_suppression_hours' => 24,
         'max_pause_minutes' => 240,      // 「アラート一時停止」ボタンの最長（期限で自動再開）
+        'max_age_hours' => 6,            // 経路の復旧・上限待ちで遅れた通知は、作成からこの時間を過ぎたら送らない（取消 expired）。解決・終了済みの案件の通知も送らない
         'global_disable' => (bool) env('MONITOR_NOTIFY_DISABLED', false),
         'global_disable_reason' => env('MONITOR_NOTIFY_DISABLED_REASON'),
         'global_disable_until' => env('MONITOR_NOTIFY_DISABLED_UNTIL'),

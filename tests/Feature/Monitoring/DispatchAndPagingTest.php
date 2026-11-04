@@ -263,4 +263,24 @@ class DispatchAndPagingTest extends MonitoringTestCase
         config()->set('monitoring.phone.public_base_url', null);
         $this->assertSame('https://lw-hana.net/monitor/incidents', \App\Monitoring\Services\SlackMessageBuilder::publicUrl('monitor/incidents'));
     }
+
+    /** 経路の復旧後に溜まっていた古い通知は送らない: 解決・終了済みの案件 → incident_closed、作成から 6 時間超 → expired（華 本番で深夜の通知が昼にまとめて届いた回帰） */
+    public function test_stale_notifications_are_cancelled_instead_of_sent_late(): void
+    {
+        Http::fake(['hooks.slack.com/*' => Http::response('ok', 200)]);
+        app(ObservationIngestor::class)->ingestInternal([
+            $this->event(['scope' => ['fp' => 'old'], 'summary' => '古い']),
+            $this->event(['scope' => ['fp' => 'closed'], 'summary' => '閉じた']),
+            $this->event(['scope' => ['fp' => 'fresh'], 'summary' => '新しい']),
+        ]);
+        $old = Incident::query()->where('scope_json->fp', 'old')->sole();
+        $closed = Incident::query()->where('scope_json->fp', 'closed')->sole();
+        Notification::query()->where('incident_id', $old->id)->update(['created_at' => now('UTC')->subHours(7)]);
+        $closed->forceFill(['workflow_status' => 'CLOSED', 'observation_state' => 'RECOVERED', 'closed_at' => now('UTC')])->save();
+        $stats = $this->dispatcher()->dispatch();
+        $this->assertSame(1, $stats['sent']);
+        $this->assertSame(2, $stats['cancelled']);
+        $this->assertSame('expired', Notification::query()->where('incident_id', $old->id)->sole()->cancel_reason);
+        $this->assertSame('incident_closed', Notification::query()->where('incident_id', $closed->id)->sole()->cancel_reason);
+    }
 }
