@@ -237,6 +237,7 @@ return [
             'apache' => ['label' => 'Apache', 'comm' => ['httpd', 'apache2']],
             'php-fpm' => ['label' => 'PHP-FPM', 'comm' => ['php-fpm'], 'prefix' => true],   // php-fpm8.3 なども一致
             'supervisor' => ['label' => 'supervisord', 'comm' => ['supervisord'], 'cmdline' => 'supervisord'], // python 実行でも cmdline で判定
+            'cron' => ['label' => 'cron', 'comm' => ['cron', 'crond']], // Laravel スケジューラ（schedule:run）の起点。MONITOR_NODE_PROCESSES に cron を含めて必須にする
         ],
         'process_scan_seconds' => 60,
         'required_processes' => array_values(array_filter(array_map('trim', explode(',', (string) env('MONITOR_NODE_PROCESSES', ''))))),

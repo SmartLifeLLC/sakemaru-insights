@@ -439,11 +439,11 @@ class ResourcesTest extends MonitoringTestCase
             '101/comm' => "httpd\n", '102/comm' => "httpd\n", '201/comm' => "php-fpm8.3\n",
             '301/comm' => "python3\n", '301/cmdline' => "/usr/bin/python3\0/usr/bin/supervisord\0-n\0",
             '302/comm' => "python3\n", '302/cmdline' => "/usr/bin/python3\0manage.py\0",
-            '401/comm' => "bash\n", 'self/comm' => "php\n",
+            '401/comm' => "bash\n", 'self/comm' => "php\n", '501/comm' => "cron\n",
         ]);
         $counts = (new ProcReader($dir))->processes((array) config('monitoring.resources.processes'));
-        $this->assertSame(['apache' => 2, 'php-fpm' => 1, 'supervisor' => 1], $counts);
-        $this->assertSame(['apache' => 0, 'php-fpm' => 0, 'supervisor' => 0], (new ProcReader($this->tmp.'/none'))->processes((array) config('monitoring.resources.processes')));
+        $this->assertSame(['apache' => 2, 'php-fpm' => 1, 'supervisor' => 1, 'cron' => 1], $counts);
+        $this->assertSame(['apache' => 0, 'php-fpm' => 0, 'supervisor' => 0, 'cron' => 0], (new ProcReader($this->tmp.'/none'))->processes((array) config('monitoring.resources.processes')));
 
         $cfg = (array) config('monitoring.resources');
         $this->assertSame(['apache', 'php-fpm', 'supervisor'], ResourceSampler::requiredProcesses($cfg, 'web'));

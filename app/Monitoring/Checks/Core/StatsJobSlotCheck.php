@@ -10,124 +10,94 @@ use App\Monitoring\Services\Observation;
 use Carbon\CarbonImmutable;
 
 /**
- * core.stats_job_slot: 予定枠ごとの親処理（更新分再集計・前日確定・部門同期・月次）の実行確認（仕様 v2.3 第3章）。
- * 開始記録なし（予定＋開始猶予）→ STATS_JOB_NOT_STARTED / 完了期限を過ぎて running → STATS_JOB_OVERRUN / failed → STATS_JOB_FAILED。
- * skipped（対象 0 件・他ノード）は正常ログ。lock_busy が続けば WARNING。指紋はジョブ＋予定枠で固定し、同じ枠の完了でのみ復旧する。
+ * core.stats_job_slot: 更新分再集計の予定枠（02:00 / 07:00 / 08:10 / 09:00 / 12:00 / 16:00 / 19:00）の実行確認（仕様 v2.3、Core 変更なし版）。
+ * - 枠＋開始猶予に子記録（daily_aggregate）が無く、更新窓に有効な売上伝票の更新がある → STATS_JOB_NOT_STARTED（ERROR）
+ * - 更新が無ければ「対象なし（推定）」として正常ログ
+ * - 子記録が running のまま完了期限を超える → STATS_JOB_OVERRUN、failed → STATS_JOB_FAILED
+ * 指紋は枠（日付＋時刻）で固定し、同じ枠の完了でのみ復旧。未解決は判定範囲を外れても再確認する。
  */
 class StatsJobSlotCheck extends BusinessCheck
 {
     use CoreJobRuns;
 
-    public const JOBS = [
-        'stats.refresh_updated' => ['slots' => 'slots_refresh', 'complete' => 'complete_refresh_minutes', 'deadline' => null],
-        'stats.finalize_daily' => ['slots' => 'slots_finalize', 'complete' => null, 'deadline' => 'deadline_finalize_time'],
-        'stats.sync_departments' => ['slots' => 'slots_sync', 'complete' => null, 'deadline' => 'deadline_sync_time'],
-        'stats.refresh_monthly' => ['slots' => 'slots_monthly', 'complete' => 'complete_monthly_minutes', 'deadline' => null],
-    ];
-
     public function definition(): CheckDefinition
     {
-        return new CheckDefinition('core.stats_job_slot', 'CORE', '統計の定時処理（予定枠）', '予定枠ごとに親処理が起動・完了したか（起動なし・長時間実行・失敗）', 1, 300, 300, 'RB-22', false, true, 1, true,
-            [
-                'slots_refresh' => ['02:00', '07:00', '08:10', '09:00', '12:00', '16:00', '19:00'], 'complete_refresh_minutes' => 30,
-                'slots_finalize' => ['02:00'], 'deadline_finalize_time' => '02:45',
-                'slots_sync' => ['02:20'], 'deadline_sync_time' => '02:45',
-                'slots_monthly' => ['15:00'], 'complete_monthly_minutes' => 60,
-                'start_grace_minutes' => 5, 'lock_busy_warn_count' => 2,
-            ],
-            ['slots_refresh', 'complete_refresh_minutes', 'slots_finalize', 'deadline_finalize_time', 'slots_sync', 'deadline_sync_time', 'slots_monthly', 'complete_monthly_minutes', 'start_grace_minutes', 'lock_busy_warn_count'],
-            '予定枠は Core の HanaSchedule / config/scheduled_jobs.php と一致させる');
+        return new CheckDefinition('core.stats_job_slot', 'CORE', '統計の定時処理（予定枠）', '予定枠ごとに更新分再集計が起動・完了したか（起動なし・長時間実行・失敗）', 1, 300, 300, 'RB-22', false, true, 1, true,
+            ['slots' => array_keys(self::REFRESH_BOUNDARY_HOURS), 'start_grace_minutes' => 5, 'complete_minutes' => 30, 'default_boundary_hours' => 6],
+            ['slots', 'start_grace_minutes', 'complete_minutes', 'default_boundary_hours'],
+            '予定枠と更新窓（--previous_boundary）は Core の HanaSchedule と一致させる。対象日は売上伝票の更新から推定（Core の記録が無いため近似）');
     }
 
     public function evaluate(CheckContext $ctx): CheckResult
     {
-        $src = $ctx->source();
-        $now = $ctx->nowLocal();
+        $slots = (array) $ctx->config('slots', array_keys(self::REFRESH_BOUNDARY_HOURS));
         $startGrace = (int) $ctx->config('start_grace_minutes', 5);
         $obs = [];
         $seen = [];
-        try {
-            foreach (self::JOBS as $job => $keys) {
-                $slots = (array) $ctx->config($keys['slots'], []);
-                foreach ($this->dueSlots($ctx, $slots, $startGrace) as $slot) {
-                    $seen[$job.'|'.$slot['date'].' '.$slot['time']] = true;
-                    $obs[] = $this->evaluateSlot($ctx, $job, $slot['date'], $slot['time'], $slot['start'], $startGrace);
-                }
+        foreach ($this->dueSlots($ctx, $slots, $startGrace) as $slot) {
+            $seen[$slot['date'].' '.$slot['time']] = true;
+            $obs[] = $this->evaluateSlot($ctx, $slot['date'], $slot['time'], $slot['start']);
+        }
+        foreach ($this->trackedScopes('core.stats_job_slot') as $scope) {
+            $date = (string) ($scope['business_date'] ?? '');
+            $time = (string) ($scope['slot'] ?? '');
+            if ($date === '' || $time === '' || isset($seen[$date.' '.$time]) || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+                continue;
             }
-            // 継続追跡: 判定範囲を外れた未解決案件の対象も再確認する
-            foreach ($this->trackedScopes('core.stats_job_slot') as $scope) {
-                $job = (string) ($scope['job'] ?? '');
-                $date = (string) ($scope['business_date'] ?? '');
-                $time = (string) ($scope['slot'] ?? '');
-                if (! isset(self::JOBS[$job]) || $date === '' || $time === '' || isset($seen[$job.'|'.$date.' '.$time])) {
-                    continue;
-                }
-                $obs[] = $this->evaluateSlot($ctx, $job, $date, $time, CarbonImmutable::parse($date.' '.$time, 'Asia/Tokyo'), $startGrace);
-            }
-        } catch (\Throwable $e) {
-            if ($this->isTableMissing($e)) {
-                return $this->notInstalled($ctx);
-            }
-            throw $e;
+            $obs[] = $this->evaluateSlot($ctx, $date, $time, CarbonImmutable::parse($date.' '.$time, 'Asia/Tokyo'));
         }
         if (! $obs) {
-            $nexts = [];
-            foreach (self::JOBS as $job => $keys) {
-                if ($n = $this->nextSlot($ctx, (array) $ctx->config($keys['slots'], []), $startGrace)) {
-                    $nexts[] = $n['start'];
-                }
-            }
-            sort($nexts);
-            $obs[] = Observation::notDue('次の判定は '.($nexts ? $nexts[0]->format('m/d H:i') : '—').'＋'.$startGrace.'分。', ['slot' => 'next']);
+            $next = $this->nextSlot($ctx, $slots, $startGrace);
+            $obs[] = Observation::notDue('次の判定は '.($next ? $next['date'].' '.$next['time'].'＋'.$startGrace.'分' : '—').'。', ['slot' => 'next']);
         }
 
         return new CheckResult($obs);
     }
 
-    private function evaluateSlot(CheckContext $ctx, string $job, string $date, string $time, CarbonImmutable $start, int $startGrace): Observation
+    private function evaluateSlot(CheckContext $ctx, string $date, string $time, CarbonImmutable $start): Observation
     {
+        $src = $ctx->source();
         $now = $ctx->nowLocal();
-        $keys = self::JOBS[$job];
-        $label = $this->jobLabel($job);
-        $scope = ['job' => $job, 'business_date' => $date, 'slot' => $time];
-        $slotKey = $date.' '.$time;
-        $deadline = $keys['deadline']
-            ? CarbonImmutable::parse($date.' '.$ctx->config($keys['deadline'], '02:45'), 'Asia/Tokyo')
-            : $start->addMinutes((int) $ctx->config($keys['complete'], 30));
-        if ($deadline->lessThanOrEqualTo($start)) {
-            $deadline = $deadline->addDay(); // 日付をまたぐ期限（例 23:50 開始・00:30 期限）
-        }
-        $runs = $this->runsForSlot($ctx->source(), $job, $slotKey);
-        $metrics = ['runs' => count($runs)];
-        if ($runs === []) {
+        $scope = ['business_date' => $date, 'slot' => $time];
+        $startGrace = (int) $ctx->config('start_grace_minutes', 5);
+        $deadline = $start->addMinutes((int) $ctx->config('complete_minutes', 30));
+        $boundaryHours = (int) (self::REFRESH_BOUNDARY_HOURS[$time] ?? $ctx->config('default_boundary_hours', 6));
+        $runs = $this->childRuns($src, $start->subMinutes(2), $deadline->addMinutes($startGrace));
+        $aggregate = array_values(array_filter($runs, fn ($r) => $r->job_type === 'daily_aggregate'));
+        $label = "更新分の再集計（{$date} {$time}）";
+        if ($aggregate === []) {
             if ($now->lessThan($start->addMinutes($startGrace))) {
-                return Observation::notDue("{$label} {$slotKey} は開始待ち。", $scope, $date);
+                return Observation::notDue("{$label}は開始待ち。", $scope, $date);
+            }
+            $updated = $this->updatedAccountDates($src, $start->subHours($boundaryHours), $start);
+            $metrics = ['updated_slips' => array_sum($updated), 'updated_dates' => count($updated)];
+            if ($updated === []) {
+                return Observation::healthy("{$label}: 更新窓（{$boundaryHours} 時間）に有効な売上伝票の更新が無いため、対象なし（推定）。", $scope, $date, $metrics);
+            }
+            // 枠では起動していない。後続の枠（または手動）で対象日がすべて処理されていれば解消
+            $later = $this->succeededDatesSince($src, array_keys($updated), $start);
+            $missing = array_values(array_diff(array_keys($updated), $later));
+            if ($missing === []) {
+                return Observation::healthy("{$label}は予定枠では起動していませんが、対象 ".count($updated).' 日分は後続の処理で集計済み。', $scope, $date, $metrics);
             }
 
-            return Observation::violation("{$label}（予定 {$slotKey}）が予定＋{$startGrace}分を過ぎても起動していません。cron 停止・前の枠の実行中（withoutOverlapping）・デプロイ中を確認してください。", $scope, $date, $metrics, [], 'STATS_JOB_NOT_STARTED');
+            return Observation::violation("{$label}が予定＋{$startGrace}分を過ぎても起動していません（更新窓に ".count($updated).' 日分・'.array_sum($updated).' 件の伝票更新あり、未集計: '.implode(', ', $missing).'）。cron 停止・前の枠の実行中（withoutOverlapping）・デプロイ中を確認してください。', $scope, $date, $metrics + ['missing_dates' => count($missing)], ['dates' => array_keys($updated)], 'STATS_JOB_NOT_STARTED');
         }
-        $last = end($runs);
-        $metrics += ['target_count' => (int) $last->target_count, 'node' => $last->node];
-        switch ($last->status) {
-            case 'succeeded':
-                return Observation::healthy("{$label}（{$slotKey}）は {$last->node} で完了（対象 {$last->target_count} 日）。", $scope, $date, $metrics);
-            case 'skipped':
-                $lockBusy = count(array_filter($runs, fn ($r) => $r->status === 'skipped' && $r->skip_reason === 'lock_busy'));
-                if ($last->skip_reason === 'lock_busy' && $lockBusy >= (int) $ctx->config('lock_busy_warn_count', 2)) {
-                    return Observation::warning("{$label}（{$slotKey}）がロック待ちで {$lockBusy} 回見送られています。前の処理が長引いていないか確認してください。", $scope, $date, $metrics, [], 'STATS_JOB_LOCK_BUSY');
-                }
-
-                return Observation::healthy("{$label}（{$slotKey}）は正常に起動し、".($last->skip_reason === 'no_targets' ? '対象 0 件のため処理なし' : '見送り（'.$last->skip_reason.'）').'。', $scope, $date, $metrics);
-            case 'failed':
-                return Observation::violation("{$label}（{$slotKey}）が失敗しました（終了コード {$last->exit_code}）: ".($last->err ?: '詳細なし'), $scope, $date, $metrics, ['error' => $last->err], 'STATS_JOB_FAILED');
-            default: // running
-                $started = $this->localTime($last->started_at) ?? $start;
-                $elapsed = (int) $started->diffInMinutes($now);
-                if ($now->greaterThan($deadline)) {
-                    return Observation::violation("{$label}（{$slotKey}）が {$last->node} で {$elapsed} 分間終了していません（期限 {$deadline->format('H:i')}）。停止・ロック待ち・長時間実行を確認してください。", $scope, $date, $metrics + ['elapsed_minutes' => $elapsed], [], 'STATS_JOB_OVERRUN');
-                }
-
-                return Observation::healthy("{$label}（{$slotKey}）は {$last->node} で実行中（{$elapsed} 分）。", $scope, $date, $metrics + ['elapsed_minutes' => $elapsed]);
+        $failed = array_values(array_filter($aggregate, fn ($r) => $r->status === 'failed'));
+        $running = array_values(array_filter($aggregate, fn ($r) => $r->status === 'running'));
+        $metrics = ['dates' => count($aggregate), 'failed' => count($failed), 'running' => count($running)];
+        if ($failed !== []) {
+            return Observation::violation("{$label}で ".count($failed).' 日分が失敗しました（'.implode(', ', array_map(fn ($r) => $r->d, $failed)).'）: '.($failed[0]->err ?: '詳細なし'), $scope, $date, $metrics, ['error' => $failed[0]->err], 'STATS_JOB_FAILED');
         }
+        if ($running !== [] && $now->greaterThan($deadline)) {
+            $first = $this->localTime($running[0]->started_at) ?? $start;
+
+            return Observation::violation("{$label}が期限（{$deadline->format('H:i')}）を過ぎても終了していません（{$running[0]->d} が ".(int) $first->diffInMinutes($now).' 分間 running）。停止・ロック待ち・長時間実行を確認してください。', $scope, $date, $metrics, [], 'STATS_JOB_OVERRUN');
+        }
+        if ($running !== []) {
+            return Observation::healthy("{$label}は実行中（".count($aggregate).' 日分、未完了 '.count($running).'）。', $scope, $date, $metrics);
+        }
+
+        return Observation::healthy("{$label}は完了（".count($aggregate).' 日分）。', $scope, $date, $metrics);
     }
 }

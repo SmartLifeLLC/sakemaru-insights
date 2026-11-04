@@ -1,6 +1,6 @@
 # 算盤 監視 v2.3 — 勘定衆（Core）の定時処理・売上統計の実行監視
 
-> 状態: 設計確定（2026-11-04）。対象: 華様本番。実装順 ①→②→③。
+> 状態: 設計確定（2026-11-04）。対象: 華様本番。**当面は Core 側の変更を入れない方針**（2026-11-04 決定）。第2章の Core 記録はブランチ `sakemaru-ai-core feature/scheduled-job-runs` に用意済み・未マージ。Insights は第3章の「Core 変更なし版」で運用し、Core 記録が入った時点で精度を上げる。
 > 目的: Core の cron 実行スキップ、開始後の停止、対象日の一部未集計、部門同期の未完了、前日確定の未完了、統計金額の不一致を、Insights の既存の収集・案件・通知経路で検知する。
 
 ## 1. 現状と不足
@@ -52,7 +52,17 @@ $run->finish(succeeded|failed, $exitCode, $errorMessage)
 `withoutOverlapping` で見送られた場合は Laravel がコマンドを呼ばないため記録されない → Insights は「開始記録なし」として検知（前の枠が `running` のままなら「長時間実行」の方で先に検知される）。
 取消・計上日変更で旧日付が対象から漏れる問題は、対象日の決定ロジック（`DailyBuyerRefreshDates`）に `updated_at` 以外の根拠（`earning_date` 変更履歴）を追加する別課題として扱い、本仕様では「抽出漏れ疑い」を③の金額整合で検知する。
 
-## 3. Insights 側のチェック（CORE）
+## 3a. Core 変更なし版（現在の実装）
+
+| チェック | 判定 | 限界 |
+| --- | --- | --- |
+| `core.stats_job_slot` | 枠＋5 分に `daily_aggregate` の子記録が無く、更新窓（Core の `--previous_boundary`: 02:00=30h、07:00=5h、他=6h）に**有効な売上伝票の更新**がある → `STATS_JOB_NOT_STARTED`。更新が無ければ「対象なし（推定）」。子記録が running のまま 30 分 → `STATS_JOB_OVERRUN`、failed → `STATS_JOB_FAILED`。起動しなかった枠は、対象日が後続の処理で集計されれば解消 | 親の起動・他ノード見送りは不明。対象抽出は近似（無効伝票・トレード側更新は見ない） |
+| `core.stats_job_dates` | 更新のあった計上日ごとに、枠以降の集計（02:00 以外は部門同期も）成功を確認。無ければ **WARNING**「抽出漏れ疑い」（`STATS_DATE_SUSPECT_MISSING` / `STATS_DEPT_SYNC_SUSPECT_MISSING`）。別の日の成功では解消しない | 近似のため警告止まり |
+| `core.stats_daily_finalize` v2 | 第3章どおり（Core 変更不要） | — |
+| cron 停止 | 資源収集の必須プロセスに `cron` を追加（`MONITOR_NODE_PROCESSES=apache,supervisor,cron`）。デーモン停止を検知 | `schedule:run` の実行自体は観測不能 |
+| 月次 15:00 | 記録が無く対象外 | Core 記録が必要 |
+
+## 3. Insights 側のチェック（Core 記録あり版・将来）
 
 すべて業務 DB へは索引付き SELECT のみ（1 秒上限・5 分予算 5 秒）。インシデントの指紋は「ジョブ＋予定枠」または「ジョブ＋対象日」で固定し、**同じ対象の完了でのみ復旧**する。未解決案件の対象は `ActiveScopes` 経由で判定範囲（直近 26 時間）を外れても再確認を続ける。
 
