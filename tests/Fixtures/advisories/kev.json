@@ -1,0 +1,6 @@
+{"vulnerabilities":[
+ {"cveID":"CVE-2026-10001","vendorProject":"PHP Group","product":"PHP","vulnerabilityName":"PHP Heap Overflow","dateAdded":"2026-11-03","shortDescription":"PHP contains a heap overflow.","requiredAction":"Apply updates.","dueDate":"2026-11-24","knownRansomwareCampaignUse":"Unknown"},
+ {"cveID":"CVE-2026-40001","vendorProject":"Apache","product":"HTTP Server","vulnerabilityName":"Apache HTTP Server RCE","dateAdded":"2026-11-02","shortDescription":"RCE.","requiredAction":"Apply updates.","dueDate":"2026-11-23","knownRansomwareCampaignUse":"Known"},
+ {"cveID":"CVE-2026-40002","vendorProject":"SomeVendor","product":"Router","vulnerabilityName":"Router bug","dateAdded":"2026-11-02","shortDescription":"x","requiredAction":"x","dueDate":"2026-11-23","knownRansomwareCampaignUse":"Unknown"},
+ {"cveID":"CVE-2019-00001","vendorProject":"Apache","product":"HTTP Server","vulnerabilityName":"Old","dateAdded":"2019-01-01","shortDescription":"x","requiredAction":"x","dueDate":"2019-02-01","knownRansomwareCampaignUse":"Unknown"}
+]}

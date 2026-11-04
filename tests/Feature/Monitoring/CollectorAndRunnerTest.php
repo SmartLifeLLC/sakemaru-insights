@@ -171,7 +171,7 @@ class CollectorAndRunnerTest extends MonitoringTestCase
 
         config()->set('monitoring.deployment.check_owner_node', config('monitoring.deployment.node_code'));
         $stats = app(CheckRunner::class)->run(null, null, true);
-        $this->assertSame(8, $stats['executed'], 'INSIGHTS 自己監視（プローブ・資源を含む）だけ実行');
+        $this->assertSame(9, $stats['executed'], 'INSIGHTS 自己監視（プローブ・資源・脆弱性情報を含む）だけ実行');
         $this->assertSame(10, $stats['skipped'], '業務DB未設定のため Trade チェックは実行せず UNKNOWN');
         $this->assertSame('UNKNOWN', CheckModel::query()->where('check_key', 'trade.coupon_daily')->sole()->last_outcome);
         $this->assertTrue(LogEntry::query()->where('error_code', 'MONITOR_SOURCE_NOT_CONFIGURED')->exists());

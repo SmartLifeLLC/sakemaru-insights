@@ -10,7 +10,7 @@ use Carbon\CarbonImmutable;
  */
 class RunbookRegistry
 {
-    public const VERSION = 3;
+    public const VERSION = 4;
 
     /** @return array<string,array<string,string>> */
     public static function definitions(): array
@@ -279,6 +279,24 @@ class RunbookRegistry
                 'verification_steps' => '該当の対象日・予定枠の案件が RECOVERED になる。core.stats_daily_finalize が前日分で正常。',
                 'escalation' => '勘定衆担当 → DB 担当（ロック・長時間クエリの場合）',
                 'prevention_notes' => '予定枠や --previous_boundary を変えたら監視ルール（core.stats_job_slot の slots / 更新窓）も更新する。',
+            ],
+            'RB-23' => [
+                'title' => '脆弱性報告の確認と対応',
+                'symptoms' => 'ADVISORY_UNREVIEWED（未確認の脆弱性情報に「重大」「悪用確認（CISA KEV）」「導入版が影響範囲」がある）/ ADVISORY_FETCH_STALE・ADVISORY_FETCH_NEVER（情報源からの取得が止まっている）。',
+                'impact' => '既知の脆弱性を抱えたまま運用が続く。悪用確認済み（KEV）は攻撃が実際に観測されているもので、放置の危険が高い。',
+                'first_checks' => "1. 脆弱性情報の画面（監視 → 脆弱性情報）で「新規」タブを開き、重大・悪用確認・導入版が影響 のバッジが付いた行から順に内容を読む
+2. 対象製品（Apache / PHP / Laravel / Livewire / Ubuntu / OpenSSL / MySQL / AWS）と、本番の導入版（影響パッケージの「導入」列）を見比べる
+3. 取得停止の場合: owner ノードで `php artisan monitor:fetch-advisories` を手動実行し、FAIL の情報源の理由（HTTP 4xx/5xx・名前解決・プロキシ）を確認",
+                'read_only_checks' => '・ins_monitor_advisory_fetches の直近行（情報源ごとの OK / FAILED と error）
+・本番の `php -v`、`apache2 -v`、`composer show laravel/framework livewire/livewire`、`lsb_release -a`',
+                'decision_steps' => "A. 導入していない製品・版 → 「対象外」にして理由（例: 該当版を使っていない）を残す
+B. 導入版が影響範囲・修正版あり → 修正版への更新を計画し「確認済み」に。更新完了後に「対応済み」
+C. 修正版なし（回避策のみ）→ 回避策の適用可否を判断し「確認済み」。定期的に再確認
+D. KEV 掲載 → 最優先。暫定対処（WAF・設定変更・機能停止）を先に検討",
+                'recovery_procedure' => 'OS・ミドルウェア・ライブラリの更新は担当者が手順書に従って実施する（監視画面からは実行しない）。更新後は再デプロイと動作確認を行い、該当行を「対応済み」にする。',
+                'verification_steps' => '未確認の「重大・悪用確認・導入版が影響」が 0 件になり monitor.advisories が正常。取得停止の場合は最終取得が更新される。',
+                'escalation' => 'インフラ担当 → 開発責任者（アプリ層の脆弱性）',
+                'prevention_notes' => '取得は 6 時間ごと（sakemaru-monitor-advisories@.timer）。API キー（MONITOR_NVD_API_KEY / MONITOR_GITHUB_TOKEN）を設定すると取得の制限が緩和される。情報源はこれだけで網羅ではない（docs/monitoring/security-advisories.md）。',
             ],
         ];
     }

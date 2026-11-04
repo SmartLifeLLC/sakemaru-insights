@@ -51,7 +51,7 @@ foreach (array_filter(array_map('trim', explode(';', (string) env('MONITOR_LOG_C
 $secretEnvNames = array_merge(
     ['MONITOR_SLACK_ERROR_WEBHOOK', 'MONITOR_METRICS_SECRET', 'MONITOR_CURSOR_SECRET', 'MONITOR_CHECK_OWNER_NODE',
         'MAIL_HOST', 'MAIL_PORT', 'MAIL_USERNAME', 'MAIL_PASSWORD', 'MAIL_ENCRYPTION', 'MAIL_FROM_ADDRESS', 'MAIL_FROM_NAME',
-        'TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_FROM_NUMBER'],
+        'TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN', 'TWILIO_FROM_NUMBER', 'MONITOR_NVD_API_KEY', 'MONITOR_GITHUB_TOKEN'],
     array_values(array_filter(array_map(fn ($c) => $c['secret_env'] ?? null, $collectors))),
 );
 $secretValues = [];
@@ -332,6 +332,46 @@ return [
         'voice' => 'Polly.Mizuki',
         'api_base' => 'https://api.twilio.com/2010-04-01',
         'public_base_url' => env('MONITOR_PUBLIC_BASE_URL'), // Twilio から到達できる Insights の URL（未設定なら APP_URL）
+    ],
+
+    /*
+    | 脆弱性情報の収集（外部の公開情報源 → ins_monitor_advisories）。
+    | 情報源・取得頻度は docs/monitoring/security-advisories.md。秘密値（API キー）は env だけで画面・ログに出さない。
+    | 取得は owner ノードの timer（sakemaru-monitor-advisories@.timer、6 時間ごと）。業務 DB には触れない。
+    */
+    'advisories' => [
+        'enabled' => filter_var(env('MONITOR_ADVISORIES_ENABLED', true), FILTER_VALIDATE_BOOL),
+        'sources' => array_values(array_filter(array_map('trim', explode(',', (string) env('MONITOR_ADVISORY_SOURCES', 'nvd,github,ubuntu,kev,aws,jvn'))))),
+        'initial_lookback_days' => (int) env('MONITOR_ADVISORY_LOOKBACK_DAYS', 30),
+        'http_timeout_seconds' => 20,
+        'user_agent' => 'sakemaru-insights-monitor/1.0 (+https://sakemaru.ai)',
+        // 製品の対応表。NVD は CPE 前方一致（virtualMatchString）、JVN はキーワード、KEV はベンダー/製品名の部分一致
+        'products' => [
+            'apache' => ['label' => 'Apache HTTP Server', 'cpe' => 'cpe:2.3:a:apache:http_server', 'jvn' => 'Apache HTTP Server', 'kev' => ['apache http server', 'apache httpd'], 'deb' => ['apache2']],
+            'php' => ['label' => 'PHP', 'cpe' => 'cpe:2.3:a:php:php', 'jvn' => 'PHP', 'kev' => ['php'], 'deb' => ['php']],
+            'laravel' => ['label' => 'Laravel', 'cpe' => 'cpe:2.3:a:laravel:laravel', 'jvn' => 'Laravel', 'kev' => ['laravel'], 'composer' => ['laravel/framework']],
+            'livewire' => ['label' => 'Livewire', 'cpe' => 'cpe:2.3:a:livewire:livewire', 'jvn' => 'Livewire', 'kev' => ['livewire'], 'composer' => ['livewire/livewire']],
+            'openssl' => ['label' => 'OpenSSL', 'cpe' => 'cpe:2.3:a:openssl:openssl', 'jvn' => 'OpenSSL', 'kev' => ['openssl'], 'deb' => ['openssl', 'libssl']],
+            'ubuntu' => ['label' => 'Ubuntu', 'cpe' => null /* NVD は古い CVE の更新が大量に混ざるため USN に任せる */, 'jvn' => null, 'kev' => ['ubuntu', 'linux kernel'], 'deb' => ['linux-image', 'systemd', 'sudo', 'glibc', 'libc6', 'bash', 'curl', 'libcurl']],
+            'mysql' => ['label' => 'MySQL', 'cpe' => 'cpe:2.3:a:oracle:mysql', 'jvn' => 'MySQL', 'kev' => ['mysql'], 'deb' => ['mysql']],
+            'aws' => ['label' => 'AWS', 'cpe' => null, 'jvn' => null, 'kev' => ['amazon', 'aws'], 'deb' => []],
+        ],
+        'endpoints' => [
+            'nvd' => 'https://services.nvd.nist.gov/rest/json/cves/2.0',
+            'github' => 'https://api.github.com/advisories',
+            'ubuntu' => 'https://ubuntu.com/security/notices.json',
+            'kev' => 'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json',
+            'aws' => 'https://aws.amazon.com/security/security-bulletins/rss/feed/',
+            'jvn' => 'https://jvndb.jvn.jp/myjvn',
+            'epss' => 'https://api.first.org/data/v1/epss',
+        ],
+        'nvd_api_key_env' => 'MONITOR_NVD_API_KEY',      // 任意。無い場合は 6 秒間隔で呼ぶ（公開レート制限）
+        'github_token_env' => 'MONITOR_GITHUB_TOKEN',    // 任意。無い場合は 60 回/時の匿名枠
+        'composer_lock' => env('MONITOR_ADVISORY_COMPOSER_LOCK', base_path('composer.lock')),
+        'fetch_log_keep' => 300,
+        // 監視項目 monitor.advisories: 未確認の「重大」「悪用確認（KEV）」「導入版が影響範囲」で警告
+        'alert_on' => ['critical' => true, 'kev' => true, 'installed_affected' => true],
+        'stale_hours' => 30, // 最終取得がこれより古い → 警告
     ],
 
     'ui' => [

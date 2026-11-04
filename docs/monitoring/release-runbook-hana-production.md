@@ -122,6 +122,7 @@ sudo systemctl enable --now sakemaru-monitor-notify@hana-prod.service
 sudo systemctl enable --now sakemaru-monitor-retention@hana-prod.timer
 sudo systemctl enable --now sakemaru-monitor-health@hana-prod.timer
 sudo systemctl enable --now sakemaru-monitor-detect@hana-prod.timer
+sudo systemctl enable --now sakemaru-monitor-advisories@hana-prod.timer   # 脆弱性情報の収集（6 時間ごと）。初回は手動で `php artisan monitor:fetch-advisories` を実行して取得を確認
 ```
 
 ---

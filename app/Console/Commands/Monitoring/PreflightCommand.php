@@ -129,6 +129,11 @@ class PreflightCommand extends Command
             }
         }
 
+        // 脆弱性情報の収集（owner ノードの timer）。API キーは有無だけ
+        $adv = (array) config('monitoring.advisories');
+        $lastAdv = \App\Models\Monitoring\AdvisoryFetch::query()->where('status', 'OK')->orderByDesc('id')->first();
+        $this->line('advisories: '.(($adv['enabled'] ?? false) ? 'enabled' : 'disabled').' sources='.implode(',', (array) ($adv['sources'] ?? [])).' nvd_key='.(\App\Monitoring\Support\Env::get($adv['nvd_api_key_env'] ?? null) ? 'set' : 'none').' github_token='.(\App\Monitoring\Support\Env::get($adv['github_token_env'] ?? null) ? 'set' : 'none').' last_ok='.($lastAdv ? $lastAdv->started_at->setTimezone('Asia/Tokyo')->format('m/d H:i') : 'NEVER（owner で monitor:fetch-advisories を実行）'));
+
         // 収集器
         $cols = (array) config('monitoring.collectors');
         $this->line('collectors: '.count($cols));

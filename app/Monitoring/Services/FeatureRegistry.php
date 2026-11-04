@@ -86,7 +86,7 @@ class FeatureRegistry
 
         // ---- 算盤 INSIGHTS（自己監視は常時 ON）----
         'insights.self' => ['site' => 'INSIGHTS', 'name' => '監視基盤の自己監視', 'sort' => 10, 'default' => true,
-            'checks' => ['monitor.collector_stale', 'monitor.check_stale', 'monitor.notification', 'monitor.storage', 'monitor.probe_stale', 'monitor.metrics_stale'],
+            'checks' => ['monitor.collector_stale', 'monitor.check_stale', 'monitor.notification', 'monitor.storage', 'monitor.probe_stale', 'monitor.metrics_stale', 'monitor.advisories'],
             'detect' => null],
         'insights.probe' => ['site' => 'INSIGHTS', 'name' => 'HTTP 外形監視（各サービスの /up）', 'sort' => 15, 'default' => true,
             'checks' => ['http.probe'],

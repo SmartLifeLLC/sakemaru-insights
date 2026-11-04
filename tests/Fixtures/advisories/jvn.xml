@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns="http://purl.org/rss/1.0/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:sec="http://jvn.jp/rss/mod_sec/3.0/">
+<channel rdf:about="https://jvndb.jvn.jp/"><title>JVNDB</title></channel>
+<item rdf:about="https://jvndb.jvn.jp/ja/contents/2026/JVNDB-2026-000001.html">
+ <title>Apache HTTP Server におけるテストの脆弱性</title>
+ <link>https://jvndb.jvn.jp/ja/contents/2026/JVNDB-2026-000001.html</link>
+ <description>Apache HTTP Server には、テスト用の脆弱性が存在します。</description>
+ <sec:identifier>JVNDB-2026-000001</sec:identifier>
+ <sec:references source="CVE" id="CVE-2026-40001">https://cve.org/CVE-2026-40001</sec:references>
+ <sec:cvss score="8.1" severity="High" version="3.0" vector="x"/>
+ <dc:date>2026-11-02T15:00:00+09:00</dc:date>
+ <dcterms:issued>2026-11-02T15:00:00+09:00</dcterms:issued>
+ <dcterms:modified>2026-11-03T15:00:00+09:00</dcterms:modified>
+</item>
+</rdf:RDF>

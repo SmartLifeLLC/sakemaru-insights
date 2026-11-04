@@ -1,0 +1,11 @@
+[Unit]
+Description=Fetch security advisories every 6 hours (%i)
+
+[Timer]
+OnBootSec=15min
+OnUnitActiveSec=6h
+RandomizedDelaySec=10min
+Unit=sakemaru-monitor-advisories@%i.service
+
+[Install]
+WantedBy=timers.target

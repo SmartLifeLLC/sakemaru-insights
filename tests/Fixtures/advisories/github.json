@@ -1,0 +1,8 @@
+[
+ {"ghsa_id":"GHSA-test-0001","cve_id":"CVE-2026-20001","summary":"Laravel framework test advisory","description":"Something bad in laravel/framework.","severity":"high","html_url":"https://github.com/advisories/GHSA-test-0001","published_at":"2026-11-01T00:00:00Z","updated_at":"2026-11-02T00:00:00Z",
+  "cvss":{"score":7.5},"vulnerabilities":[{"package":{"ecosystem":"composer","name":"laravel/framework"},"vulnerable_version_range":">= 9.0.0, < 99.0.0","first_patched_version":"99.0.0"}]},
+ {"ghsa_id":"GHSA-test-0002","cve_id":null,"summary":"Not installed package","description":"x","severity":"critical","html_url":"https://github.com/advisories/GHSA-test-0002","published_at":"2026-11-01T00:00:00Z","updated_at":"2026-11-01T00:00:00Z",
+  "cvss":{"score":9.9},"vulnerabilities":[{"package":{"ecosystem":"composer","name":"vendor/not-installed"},"vulnerable_version_range":"< 1.0.0","first_patched_version":"1.0.0"}]},
+ {"ghsa_id":"GHSA-test-0003","cve_id":"CVE-2026-20003","summary":"Old livewire issue (fixed in our version)","description":"x","severity":"moderate","html_url":"https://github.com/advisories/GHSA-test-0003","published_at":"2026-10-25T00:00:00Z","updated_at":"2026-10-25T00:00:00Z",
+  "cvss":{"score":5.0},"vulnerabilities":[{"package":{"ecosystem":"composer","name":"livewire/livewire"},"vulnerable_version_range":"< 1.0.0","first_patched_version":"1.0.0"}]}
+]

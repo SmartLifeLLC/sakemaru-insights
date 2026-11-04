@@ -1,0 +1,15 @@
+[Unit]
+Description=Sakemaru Insights security advisories fetch (%i)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/sakemaru-insights
+Environment=MONITOR_DEPLOYMENT_ID=%i
+ExecStart=/usr/bin/php artisan monitor:fetch-advisories
+Slice=sakemaru-monitor@%i.slice
+Nice=15
+TimeoutStartSec=900

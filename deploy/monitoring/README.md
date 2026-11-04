@@ -13,6 +13,7 @@
 | `sakemaru-monitor-health@<dep>.timer` | ホスト外死活監視への heartbeat（`monitor:health --external-heartbeat`） | owner ノード | 1 分 |
 | `sakemaru-monitor-resources@<dep>.service` | **v2** サーバー資源の収集（`monitor:sample-resources`、/proc 直読み。平常 30 秒・警告域 1 秒） | **全ノード** | 常駐（1 日 1 回入替） |
 | `sakemaru-monitor-detect@<dep>.timer` | **v2** 機能の推奨値検出・監視対象台帳の同期（設定は変えない） | owner ノードのみ | 毎日 05:17 |
+| `sakemaru-monitor-advisories@<dep>.timer` | **v2.3** 脆弱性情報の収集（`monitor:fetch-advisories`、NVD / GitHub Advisory / Ubuntu USN / CISA KEV / AWS / JVN。外向き HTTPS が必要） | owner ノードのみ | 6 時間 |
 
 v2 の HTTP プローブ（`http.probe`）とサーバー資源の判定（`node.resources`）は checks timer の中で動く（追加 unit 不要）。
 電話通知（Twilio）とメールは notify service が Slack と同じ lease 方式で配送する。
@@ -64,6 +65,7 @@ sudo systemctl enable --now sakemaru-monitor-checks@hana-prod.timer           # 
 sudo systemctl enable --now sakemaru-monitor-notify@hana-prod.service         # owner のみ
 sudo systemctl enable --now sakemaru-monitor-retention@hana-prod.timer        # owner のみ
 sudo systemctl enable --now sakemaru-monitor-health@hana-prod.timer           # owner のみ
+sudo systemctl enable --now sakemaru-monitor-advisories@hana-prod.timer       # owner のみ（脆弱性情報の収集）
 ```
 
 6. shadow 運用: 旧 Python 監視（`sakemaru-trade-batch-monitor.timer`）を止めずに 1 営業日以上比較する。

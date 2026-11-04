@@ -76,7 +76,7 @@ MONITOR_DEPLOYMENT_ID="${MONITOR_DEPLOYMENT_ID:-$(read_env MONITOR_DEPLOYMENT_ID
 MONITOR_TIMERS=""
 MONITOR_SERVICES=""
 if [[ -n "${MONITOR_DEPLOYMENT_ID}" ]] && command -v systemctl >/dev/null 2>&1 && sudo -v; then
-  for u in checks notify retention health detect resources collect; do
+  for u in checks notify retention health detect advisories resources collect; do
     case "$u" in
       notify|resources) unit="sakemaru-monitor-${u}@${MONITOR_DEPLOYMENT_ID}.service" ;;
       *) unit="sakemaru-monitor-${u}@${MONITOR_DEPLOYMENT_ID}.timer" ;;
