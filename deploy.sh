@@ -36,6 +36,9 @@ LOCK_FILE="/tmp/$(basename "$APP_DIR")-deploy.lock"
 cleanup() {
   cd "$APP_DIR" || exit 1
   ${PHP_BIN} artisan up || true
+  if [[ -n "${MONITOR_TIMERS:-}" ]]; then
+    sudo systemctl start ${MONITOR_TIMERS} || true
+  fi
 }
 trap cleanup EXIT
 
@@ -65,6 +68,30 @@ fi
 if [[ ! -f .env ]]; then
   echo "ERROR: .env not found"
   exit 1
+fi
+
+# 運用監視（算盤）の systemd unit: デプロイ中はキャッシュ再生成の隙間に timer が起動して例外を記録するため止める。
+# 終了後に常駐（通知配送・資源収集）を再起動して新しいコードに入れ替える。sudo が無い環境では何もしない
+MONITOR_DEPLOYMENT_ID="${MONITOR_DEPLOYMENT_ID:-$(read_env MONITOR_DEPLOYMENT_ID "")}"
+MONITOR_TIMERS=""
+MONITOR_SERVICES=""
+if [[ -n "${MONITOR_DEPLOYMENT_ID}" ]] && command -v systemctl >/dev/null 2>&1 && sudo -v; then
+  for u in checks notify retention health detect resources collect; do
+    case "$u" in
+      notify|resources) unit="sakemaru-monitor-${u}@${MONITOR_DEPLOYMENT_ID}.service" ;;
+      *) unit="sakemaru-monitor-${u}@${MONITOR_DEPLOYMENT_ID}.timer" ;;
+    esac
+    if sudo systemctl is-enabled "${unit}" >/dev/null 2>&1; then
+      case "$u" in
+        notify|resources) MONITOR_SERVICES="${MONITOR_SERVICES} ${unit}" ;;
+        *) MONITOR_TIMERS="${MONITOR_TIMERS} ${unit}" ;;
+      esac
+    fi
+  done
+fi
+if [[ -n "${MONITOR_TIMERS}" ]]; then
+  echo "-> monitor timers stop:${MONITOR_TIMERS}"
+  sudo systemctl stop ${MONITOR_TIMERS} || true
 fi
 
 echo "-> maintenance mode ON"
@@ -126,6 +153,15 @@ fi
 
 echo "-> maintenance mode OFF"
 ${PHP_BIN} artisan up
+
+if [[ -n "${MONITOR_SERVICES}" ]]; then
+  echo "-> monitor services restart:${MONITOR_SERVICES}"
+  sudo systemctl restart ${MONITOR_SERVICES} || true
+fi
+if [[ -n "${MONITOR_TIMERS}" ]]; then
+  echo "-> monitor timers start:${MONITOR_TIMERS}"
+  sudo systemctl start ${MONITOR_TIMERS} || true
+fi
 
 trap - EXIT
 
