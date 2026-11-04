@@ -171,3 +171,12 @@ th.select-col,td.select-col{width:36px;padding-left:12px;padding-right:4px}.sele
 .line-purple{fill:none;stroke:var(--purple);stroke-width:1.8}.line-prev-solid{fill:none;stroke:var(--faint);stroke-width:1.8}
 @media(max-width:1100px){.node-cols{grid-template-columns:minmax(0,1fr)}}@media(max-width:760px){.mini-charts{grid-template-columns:minmax(0,1fr)}}
 .node-range-row{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 10px;flex-wrap:wrap}.dash-nodes{margin-bottom:20px}
+
+/* ダッシュボード v2.2: KPI 以下はタブ区切り（タブは KPI と一緒に固定、本文だけ切り替え） */
+.dash-top .dash-tabs{margin:10px 0 0;padding:0 2px;border-bottom:1px solid var(--border)}
+.dash-tabs button small{margin-left:5px;font-size:11px;font-weight:700;color:#fff;background:var(--red);border-radius:999px;padding:0 6px;line-height:16px;display:inline-block;vertical-align:1px}
+.dash-sections>.panel,.dash-sections>.dash-nodes{margin-bottom:0}
+.dash-sections>.panel .chart-shell svg{height:300px}
+.dash-sections .flow svg{max-width:760px;display:block;margin:0 auto}
+.dash-sections>.table-panel{display:flex;flex-direction:column}
+[x-cloak]{display:none!important}
