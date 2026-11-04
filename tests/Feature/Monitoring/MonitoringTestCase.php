@@ -79,6 +79,10 @@ abstract class MonitoringTestCase extends TestCase
             $migration = require base_path('database/migrations/2026_11_04_000001_create_ins_monitor_v2_tables.php');
             $migration->up();
         }
+        if (! $store->hasTable('monitor_advisories')) {
+            $migration = require base_path('database/migrations/2026_11_05_000001_create_ins_monitor_advisories.php');
+            $migration->up();
+        }
         $auth = Schema::connection('sakemaru');
         if (! $auth->hasTable('client_settings')) {
             $auth->create('client_settings', function ($t) {
@@ -105,7 +109,7 @@ abstract class MonitoringTestCase extends TestCase
     protected function cleanMonitorTables(): void
     {
         $conn = DB::connection('monitor_store');
-        foreach (['monitor_secrets', 'monitor_call_attempts', 'monitor_contacts', 'monitor_probe_results', 'monitor_server_metrics', 'monitor_targets', 'monitor_nodes', 'monitor_features', 'monitor_settings', 'monitor_recheck_requests', 'monitor_counters', 'monitor_audit_events', 'monitor_runbooks', 'monitor_notification_attempts', 'monitor_delivery_batches', 'monitor_notifications', 'monitor_incident_events', 'monitor_incidents', 'monitor_logs', 'monitor_check_attempts', 'monitor_check_runs', 'monitor_checks', 'monitor_collectors', 'monitor_sites'] as $t) {
+        foreach (['monitor_advisory_fetches', 'monitor_advisories', 'monitor_secrets', 'monitor_call_attempts', 'monitor_contacts', 'monitor_probe_results', 'monitor_server_metrics', 'monitor_targets', 'monitor_nodes', 'monitor_features', 'monitor_settings', 'monitor_recheck_requests', 'monitor_counters', 'monitor_audit_events', 'monitor_runbooks', 'monitor_notification_attempts', 'monitor_delivery_batches', 'monitor_notifications', 'monitor_incident_events', 'monitor_incidents', 'monitor_logs', 'monitor_check_attempts', 'monitor_check_runs', 'monitor_checks', 'monitor_collectors', 'monitor_sites'] as $t) {
             $conn->table($t)->delete();
         }
         if ($conn->getDriverName() === 'sqlite') {

@@ -14,6 +14,7 @@
             ['rules', 'sliders', '監視ルール', \App\Filament\Monitor\Pages\Rules::getUrl()],
             ['notifications', 'bell', '通知設定', \App\Filament\Monitor\Pages\Notifications::getUrl()],
             ['runbooks', 'book', '対処手順', \App\Filament\Monitor\Pages\Runbooks::getUrl()],
+            ['advisories', 'shield', '脆弱性情報', \App\Filament\Monitor\Pages\Advisories::getUrl()],
             ['nodes', 'cpu', 'ノード', \App\Filament\Monitor\Pages\Nodes::getUrl()],
         ],
     ];

@@ -1,0 +1,10 @@
+{"resultsPerPage":2,"totalResults":2,"vulnerabilities":[
+ {"cve":{"id":"CVE-2026-10001","published":"2026-11-01T10:00:00.000","lastModified":"2026-11-02T10:00:00.000",
+  "descriptions":[{"lang":"en","value":"In PHP versions before 99.0.0, a heap buffer overflow in the test parser allows remote code execution."}],
+  "metrics":{"cvssMetricV31":[{"cvssData":{"baseScore":9.8,"baseSeverity":"CRITICAL"}}]},
+  "configurations":[{"nodes":[{"cpeMatch":[{"vulnerable":true,"criteria":"cpe:2.3:a:php:php:*:*:*:*:*:*:*:*","versionStartIncluding":"8.0.0","versionEndExcluding":"99.0.0"}]}]}]}},
+ {"cve":{"id":"CVE-2026-10002","published":"2026-10-20T10:00:00.000","lastModified":"2026-10-21T10:00:00.000",
+  "descriptions":[{"lang":"en","value":"PHP 5.x only issue."}],
+  "metrics":{"cvssMetricV31":[{"cvssData":{"baseScore":5.3,"baseSeverity":"MEDIUM"}}]},
+  "configurations":[{"nodes":[{"cpeMatch":[{"vulnerable":true,"criteria":"cpe:2.3:a:php:php:*:*:*:*:*:*:*:*","versionEndExcluding":"5.6.0"}]}]}]}}
+]}

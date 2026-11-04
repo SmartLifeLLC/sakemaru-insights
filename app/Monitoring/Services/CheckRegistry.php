@@ -23,6 +23,7 @@ class CheckRegistry
         Checks\Monitor\HttpProbeCheck::class,
         Checks\Monitor\ProbeStaleCheck::class,
         Checks\Monitor\MetricsStaleCheck::class,
+        Checks\Monitor\AdvisoriesCheck::class,
         Checks\Monitor\NodeResourcesCheck::class,
         // Trade
         Checks\Trade\CouponDailyCheck::class,

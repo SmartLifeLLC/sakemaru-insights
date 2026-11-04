@@ -97,6 +97,16 @@ class Dashboard extends MonitorPage
         return $this->dataMemo ??= $this->buildData();
     }
 
+    /** 脆弱性情報の 1 行（KPI の上に出す） */
+    public function advisoryHeadline(): array
+    {
+        try {
+            return app(\App\Monitoring\Advisories\AdvisoryService::class)->headline();
+        } catch (\Throwable $e) {
+            return ['level' => 'muted', 'text' => '脆弱性情報を読み込めません（migration 未実行の可能性）: '.class_basename($e)];
+        }
+    }
+
     /** @return array<string,mixed> */
     private function buildData(): array
     {

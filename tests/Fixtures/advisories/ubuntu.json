@@ -1,0 +1,7 @@
+{"notices":[
+ {"id":"USN-9001-1","title":"Apache HTTP Server vulnerabilities","summary":"Several security issues were fixed in Apache HTTP Server.","published":"2026-11-02T09:00:00","cves_ids":["CVE-2026-30001","CVE-2026-30002"],
+  "release_packages":{"noble":[{"name":"apache2","version":"2.4.58-1ubuntu8.9"},{"name":"apache2-bin","version":"2.4.58-1ubuntu8.9"}]}},
+ {"id":"USN-9002-1","title":"Unrelated package","summary":"x","published":"2026-11-01T09:00:00","cves_ids":["CVE-2026-30003"],
+  "release_packages":{"noble":[{"name":"somethingelse","version":"1.0"}]}},
+ {"id":"USN-8000-1","title":"Too old","summary":"x","published":"2020-01-01T09:00:00","cves_ids":[],"release_packages":{"noble":[{"name":"apache2","version":"2.0"}]}}
+]}

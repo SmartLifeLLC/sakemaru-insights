@@ -47,6 +47,11 @@
             </div>
         @endif
 
+        @php($adv = $this->advisoryHeadline())
+        <a class="adv-strip level-{{ $adv['level'] }}" href="{{ \App\Filament\Monitor\Pages\Advisories::getUrl(['tab' => ($adv['summary']['urgent'] ?? 0) > 0 ? 'urgent' : 'new']) }}" wire:navigate>
+            {!! Icon::svg($adv['level'] === 'ok' ? 'shield' : ($adv['level'] === 'muted' ? 'info' : 'alert')) !!}<b>脆弱性情報</b><span>{{ $adv['text'] }}</span><span class="adv-go">{!! Icon::svg('arrow') !!}</span>
+        </a>
+
         <div class="kpi-grid" x-show="shown('kpi')">
             <div class="kpi">
                 <div class="kpi-top"><span>監視実行数（{{ $pname }}）</span>{!! Icon::svg('pulse') !!}</div>
