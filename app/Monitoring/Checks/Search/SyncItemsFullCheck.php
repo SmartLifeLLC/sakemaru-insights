@@ -10,14 +10,14 @@ use App\Monitoring\Services\Observation;
 
 /**
  * search.sync_items_full: 検索データの全件更新（srh_search_sync_states, name=searchable_items_full、毎日 03:00 頃）。
- * 判定時刻（既定 04:00）以降に当日の last_success_at が無い、または status がエラー → ERROR。
+ * 判定時刻（既定 03:30。前回実績 2 分のため）以降に当日の last_success_at が無い、または status がエラー → ERROR。
  */
 class SyncItemsFullCheck extends BusinessCheck
 {
     public function definition(): CheckDefinition
     {
         return new CheckDefinition('search.sync_items_full', 'SEARCH', '検索データの全件更新', '毎日の全件更新が完了しているか', 1, 900, 900, 'RB-16', false, true, 1, true,
-            ['state_name' => 'searchable_items_full', 'slots' => ['03:00'], 'grace_minutes' => 60], ['slots', 'grace_minutes']);
+            ['state_name' => 'searchable_items_full', 'slots' => ['03:00'], 'grace_minutes' => 30], ['slots', 'grace_minutes']);
     }
 
     public function evaluate(CheckContext $ctx): CheckResult
@@ -26,7 +26,7 @@ class SyncItemsFullCheck extends BusinessCheck
         $rows = $ctx->source()->select('SELECT name, status, last_started_at, last_success_at, last_finished_at, last_checked_item_count, last_updated_item_count, SUBSTR(last_error, 1, 300) AS err FROM srh_search_sync_states WHERE name = ?', [$name]);
         $s = $rows[0] ?? null;
         $slots = (array) $ctx->config('slots', ['03:00']);
-        $grace = (int) $ctx->config('grace_minutes', 60);
+        $grace = (int) $ctx->config('grace_minutes', 30);
         $obs = [];
         foreach ($this->dueSlots($ctx, $slots, $grace) as $slot) {
             $scope = ['business_date' => $slot['date']];
