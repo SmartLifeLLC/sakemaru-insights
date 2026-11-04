@@ -92,6 +92,20 @@ class NotificationDispatcher
 
                 continue;
             }
+            // 経路の復旧・上限待ちで遅れた古い通知は送らない（解決・終了済みの案件、または作成から max_age_hours 超）
+            if ($incident && ! $incident->workflow_status->isOpenish()) {
+                $this->finish($n, NotificationStatus::CANCELLED, null, 'incident_closed', $now);
+                $stats['cancelled']++;
+
+                continue;
+            }
+            $maxAge = (int) config('monitoring.notification.max_age_hours', 6);
+            if ($maxAge > 0 && $n->created_at && CarbonImmutable::instance($n->created_at)->addHours($maxAge)->lessThan($now)) {
+                $this->finish($n, NotificationStatus::CANCELLED, null, 'expired', $now);
+                $stats['cancelled']++;
+
+                continue;
+            }
             $toSend[] = ['notification' => $n, 'incident' => $incident];
         }
 
