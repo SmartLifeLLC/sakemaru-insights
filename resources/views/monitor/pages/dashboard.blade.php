@@ -32,6 +32,10 @@
             picker: false,
             toggle(w) { this.hidden = this.hidden.includes(w) ? this.hidden.filter(x => x !== w) : [...this.hidden, w]; try { localStorage.setItem('sakemaru-monitor-widgets', JSON.stringify(this.hidden)) } catch (e) {} },
             shown(w) { return ! this.hidden.includes(w) },
+            tabs: @js(array_keys($this->sectionTabs())),
+            tab: (() => { try { return localStorage.getItem('sakemaru-monitor-dash-tab') || 'incidents' } catch (e) { return 'incidents' } })(),
+            setTab(t) { this.tab = t; try { localStorage.setItem('sakemaru-monitor-dash-tab', t) } catch (e) {} },
+            current() { return this.shown(this.tab) ? this.tab : (this.tabs.find(t => this.shown(t)) || this.tab) },
          }" x-on:open-widgets.window="picker = true" wire:poll.{{ (int) config('monitoring.ui.auto_refresh_seconds', 60) }}s.visible>
 
         <div class="dash-top">{{-- 重大障害の帯と KPI 4 枚は固定。以降がスクロール --}}
@@ -68,17 +72,24 @@
                 <div class="kpi-meta">送信 {{ number_format($k['notifications_delivered']) }} / 失敗 <span class="{{ $k['notifications_failed'] ? 'bad' : '' }}">{{ number_format($k['notifications_failed']) }}</span></div>
             </div>
         </div>
+        {{-- KPI 以下はタブ区切り（スクロールを減らす、v2.2）。タブは KPI と一緒に固定 --}}
+        <div class="tabs dash-tabs" role="tablist">
+            @foreach ($this->sectionTabs() as $key => [$label, $count])
+                <button type="button" role="tab" x-show="shown('{{ $key }}')" :class="{ active: current() === '{{ $key }}' }" :aria-selected="current() === '{{ $key }}' ? 'true' : 'false'" x-on:click="setTab('{{ $key }}')">{{ $label }}@if ($count !== null)<small>{{ $count }}</small>@endif</button>
+            @endforeach
+        </div>
         </div>{{-- /dash-top --}}
 
+        <div class="dash-sections">
         @php($nodeRows = $this->nodeRows())
-        @if ($nodeRows)
-            <section class="dash-nodes" x-show="shown('nodes')">
+        <section class="dash-nodes" x-show="current() === 'nodes'" x-cloak>
+            @if ($nodeRows)
                 <x-monitor.node-panels :rows="$nodeRows" :range="$this->nodeRange" setter="setNodeRange" />
-            </section>
-        @endif
-
-        <div class="main-grid">
-            <section class="panel" x-show="shown('trend')">
+            @else
+                <div class="panel"><div class="empty">資源収集ノードからの受信がありません。</div></div>
+            @endif
+        </section>
+            <section class="panel" x-show="current() === 'trend'" x-cloak>
                 <div class="panel-head">
                     <div><h2 class="panel-title">異常検知数の推移</h2><p class="panel-sub">警告・エラー・重大の合計（{{ $pname }}）</p></div>
                 </div>
@@ -86,7 +97,7 @@
                 <div class="chart-shell">{!! Svg::line($d['trend']['cur'], $d['trend']['prev'], $d['trend']['labels']) !!}</div>
                 <div class="chart-foot"><span>元データ: 時間別カウンタ（全件集計なし）</span><span>合計 {{ number_format(array_sum($d['trend']['cur'])) }} 件</span></div>
             </section>
-            <section class="panel" x-show="shown('services')">
+            <section class="panel" x-show="current() === 'services'" x-cloak>
                 <div class="panel-head"><div><h2 class="panel-title">サービスの稼働状況</h2><p class="panel-sub">直近 24 時間（1 本 = 1 時間の最悪判定）</p></div><a class="btn link" href="{{ Services::getUrl() }}">一覧 {!! Icon::svg('arrow') !!}</a></div>
                 <div class="service-head-stats"><span class="legend-item"><i class="dot green"></i>正常</span><span class="legend-item"><i class="dot amber"></i>警告</span><span class="legend-item"><i class="dot red"></i>障害</span><span class="legend-item"><i class="dot" style="background:var(--border)"></i>判定なし</span></div>
                 <div class="service-list">
@@ -102,11 +113,8 @@
                     @endforelse
                 </div>
             </section>
-        </div>
-
-        <div class="main-grid">
             @php($f = $d['flow'])
-            <section class="panel" x-show="shown('flow')">
+            <section class="panel" x-show="current() === 'flow'" x-cloak>
                 <div class="panel-head"><div><h2 class="panel-title">異常イベントの処理フロー</h2><p class="panel-sub">検知 → インシデント → 通知 → 配送結果（{{ $pname }}）</p></div><span class="badge neutral">{{ number_format($f['anomalies']) }} 件</span></div>
                 <div class="flow">
                     <svg viewBox="0 0 680 200" role="img" aria-label="異常 {{ $f['anomalies'] }} 件、インシデント {{ $f['incidents'] }} 件、集約 {{ $f['deduplicated'] }} 件、通知 {{ $f['queued'] }} 件、配送完了 {{ $f['delivered'] }} 件、失敗 {{ $f['failed'] }} 件">
@@ -124,7 +132,7 @@
                 </div>
                 <div class="flow-note">{!! Icon::svg('info') !!}異常 = 警告＋エラー＋重大。既存へ集約 = 同じ障害の再検知（通知しない）。通知は Slack・メール・電話の合計。</div>
             </section>
-            <section class="panel" x-show="shown('incidents')">
+            <section class="panel" x-show="current() === 'incidents'" x-cloak>
                 <div class="panel-head"><div><h2 class="panel-title">対応が必要な問題 <span class="count">{{ array_sum($d['unresolved']) }}</span></h2><p class="panel-sub">重大度・未確認の順に 5 件</p></div></div>
                 <div class="incident-list">
                     @forelse ($d['attention'] as $i)
@@ -139,13 +147,11 @@
                 </div>
                 <div class="panel-bottom"><span>未確認 {{ $this->shell()['unack'] }} 件</span><a class="btn link" href="{{ Incidents::getUrl() }}">エラー管理を開く {!! Icon::svg('arrow') !!}</a></div>
             </section>
-        </div>
-
-
-        <section class="panel table-panel" x-show="shown('logs')">
+        <section class="panel table-panel" x-show="current() === 'logs'" x-cloak>
             <div class="panel-head"><div><h2 class="panel-title">最新の監視ログ</h2><p class="panel-sub">受信の新しい順に 5 件</p></div><a class="btn link" href="{{ Logs::getUrl() }}">監視ログを開く {!! Icon::svg('arrow') !!}</a></div>
             @include('monitor.partials.log-table', ['rows' => $d['logs'], 'clickable' => false])
         </section>
+        </div>{{-- /dash-sections --}}
 
         <template x-if="picker">
             <div>

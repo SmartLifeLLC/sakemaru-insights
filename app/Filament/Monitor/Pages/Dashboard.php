@@ -32,6 +32,25 @@ class Dashboard extends MonitorPage
         return \App\Monitoring\Resources\NodeOverview::rows($this->nodeRange);
     }
 
+    /**
+     * KPI 以下のセクション（タブ）。キーは「表示をカスタマイズ」のウィジェット名と同じ。
+     *
+     * @return array<string,array{0:string,1:int|null}>
+     */
+    public function sectionTabs(): array
+    {
+        $d = $this->data();
+
+        return [
+            'incidents' => ['対応が必要な問題', array_sum($d['unresolved'])],
+            'nodes' => ['システム負荷', null],
+            'trend' => ['異常検知数の推移', null],
+            'services' => ['サービスの稼働状況', null],
+            'flow' => ['処理フロー', null],
+            'logs' => ['最新の監視ログ', null],
+        ];
+    }
+
     protected static ?string $title = 'ダッシュボード';
 
     protected static ?string $slug = '/';
@@ -69,8 +88,17 @@ class Dashboard extends MonitorPage
         return $ids;
     }
 
+    /** @var array<string,mixed>|null リクエスト内のメモ（ビューと sectionTabs() の両方から呼ばれる） */
+    private ?array $dataMemo = null;
+
     /** @return array<string,mixed> */
     public function data(): array
+    {
+        return $this->dataMemo ??= $this->buildData();
+    }
+
+    /** @return array<string,mixed> */
+    private function buildData(): array
     {
         $now = CarbonImmutable::now('UTC');
         $stats = app(StatsService::class);
