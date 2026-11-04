@@ -137,6 +137,9 @@ class CheckRegistry
                 $row->version = $d->version;
                 $row->runbook_key = $d->runbookKey;
                 $row->interval_seconds = (int) ($row->rule_json['interval_seconds'] ?? $d->intervalSeconds); // 監視ルールで変えた間隔を保持
+                // 設定値: 画面で変更したキー（rule_json.config_keys）だけ保持し、それ以外はコードの既定値に追従する
+                $kept = array_intersect_key((array) $row->config_json, array_flip((array) ($row->rule_json['config_keys'] ?? [])));
+                $row->config_json = array_merge($d->defaultConfig, $kept) ?: null;
                 if (! $d->implemented) {
                     $row->enabled = false;
                 }
