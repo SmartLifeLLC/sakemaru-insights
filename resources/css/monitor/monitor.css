@@ -159,3 +159,14 @@ main{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;padd
 /* エラー管理: 一括対処の選択列 */
 th.select-col,td.select-col{width:36px;padding-left:12px;padding-right:4px}.select-col input{width:15px;height:15px;accent-color:var(--blue);cursor:pointer;margin:0;vertical-align:middle}
 .bulk-slot{margin-left:auto}.bulk-slot .fi-btn{font-size:13px;font-weight:600}
+/* ノード一覧 v2.1: 最大 2 台を横並び、AWS 風タブ、時系列をメインに */
+.node-cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}.node-cols.single{grid-template-columns:minmax(0,1fr)}
+.node-panel{padding:0}.node-head{display:flex;justify-content:space-between;gap:12px;padding:14px 18px 8px;flex-wrap:wrap}.node-head h3{font-size:15px;margin:0;display:flex;gap:8px;align-items:center}.node-head small{color:var(--muted);font-size:12px}
+.node-now{display:flex;gap:14px;font-size:11px;color:var(--muted);align-items:baseline}.node-now b{font-size:18px;font-weight:600;color:var(--text);margin-right:3px}.node-now .text-red b{color:var(--red)}
+.node-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);padding:0 10px}.node-tabs button{border:0;background:none;padding:8px 12px;font-size:13px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}.node-tabs button.active{color:var(--blue);border-bottom-color:var(--blue);font-weight:600}
+.node-tab-body{padding:12px 14px 10px}
+.mini-charts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.mini-chart{border:1px solid var(--border-soft);border-radius:8px;padding:8px 10px 4px;background:var(--panel)}.mini-chart svg{width:100%;height:120px}
+.mini-chart-head{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:2px}.mini-chart-head b{color:var(--text);font-size:13px}
+.kv-table{width:100%;border-collapse:collapse}.kv-table th{width:140px;text-align:left;background:var(--panel2);color:var(--muted);font-weight:500;font-size:12px;padding:8px 12px;border-bottom:1px solid var(--border-soft);border-top:0}.kv-table td{padding:8px 12px;font-size:13px;border-bottom:1px solid var(--border-soft);vertical-align:top}
+.line-purple{fill:none;stroke:var(--purple);stroke-width:1.8}.line-prev-solid{fill:none;stroke:var(--faint);stroke-width:1.8}
+@media(max-width:1100px){.node-cols{grid-template-columns:minmax(0,1fr)}}@media(max-width:760px){.mini-charts{grid-template-columns:minmax(0,1fr)}}
