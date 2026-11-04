@@ -204,6 +204,14 @@ class Incidents extends MonitorPage
         } else {
             $this->ok($msg);
         }
+        // 一覧の自動更新で見逃さないよう、閉じるまで残る通知も出す（画面右上）
+        $hint = match ($action) {
+            'mark_recovered' => ' 観測は「復旧」になりました。一覧から外すには続けて「解決して終了する」を記録してください。',
+            'acknowledge' => ' 対応状況は「確認済」です。',
+            default => '',
+        };
+        \Filament\Notifications\Notification::make()->title('一括対処の結果')->body($msg.$hint)
+            ->{$skipped === [] ? 'success' : ($ok > 0 ? 'warning' : 'danger')}()->persistent()->send();
     }
 
     public function applyFilters(): void
