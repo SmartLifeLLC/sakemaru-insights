@@ -250,6 +250,14 @@ class PageActionsTest extends MonitoringTestCase
         $notices = (string) Livewire::test(\App\Filament\Monitor\Pages\Logs::class)->instance()->noticesAction()->getModalContent()->render();
         $this->assertStringContainsString('アラート停止中', $notices);
         $this->assertStringContainsString('障害対応中', $notices);
+        // 推奨設定（info: ホスト外死活監視など）は折りたたみに分け、バッジには数えない
+        config()->set('monitoring.notification.external_heartbeat_url', null);
+        $this->assertStringContainsString('推奨設定（任意）', (string) Livewire::test(\App\Filament\Monitor\Pages\Logs::class)->instance()->noticesAction()->getModalContent()->render());
+        $all = app(\App\Monitoring\Services\MonitorHealthService::class)->banners();
+        $this->assertNotEmpty(array_filter($all, fn ($b) => $b['level'] === 'info'), 'info の項目がある前提');
+        $badge = count(array_filter($all, fn ($b) => $b['level'] !== 'info')) + \App\Models\Monitoring\Incident::query()->whereNull('acknowledged_at')->count();
+        preg_match('/data-count="(\d+)"/', (string) $this->get('/monitor/logs')->getContent(), $m);
+        $this->assertSame((string) $badge, $m[1] ?? 'none', 'バッジは info を除いた件数');
         Livewire::test(\App\Filament\Monitor\Pages\Logs::class)->callAction('resumeAlerts')->assertHasNoActionErrors();
         $this->assertNull(app(\App\Monitoring\Services\NotificationSettings::class)->pause());
 

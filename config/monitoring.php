@@ -198,6 +198,7 @@ return [
         'global_disable_until' => env('MONITOR_NOTIFY_DISABLED_UNTIL'),
         'fallback_contact' => env('MONITOR_FALLBACK_CONTACT'), // 代替通知先（運用責任者が指定）
         'external_heartbeat_url' => env('MONITOR_EXTERNAL_HEARTBEAT_URL'), // ホスト外死活監視
+        'blocked_window_seconds' => (int) env('MONITOR_BLOCKED_WINDOW_SECONDS', 3600), // お知らせ・監視項目で「配送不可」を数える窓
     ],
 
     /*

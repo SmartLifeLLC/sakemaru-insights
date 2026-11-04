@@ -250,8 +250,12 @@ class DispatchAndPagingTest extends MonitoringTestCase
         $ctx = fn () => new \App\Monitoring\Services\CheckContext(\App\Monitoring\Services\SourceReader::fromConfig(), CarbonImmutable::now('UTC'), $check->definition()->defaultConfig);
         $blocked = fn ($r) => collect($r->observations)->first(fn ($o) => $o->scope === ['queue' => 'blocked']);
         $this->assertSame('HEALTHY', $blocked($check->evaluate($ctx()))->outcome->value, '3 時間前の配送不可は見ない');
+        // お知らせ（ベル）も同じ窓で数える。古い BLOCKED だけならお知らせに出ない
+        $texts = fn () => array_column(app(\App\Monitoring\Services\MonitorHealthService::class)->banners(), 'text');
+        $this->assertEmpty(array_filter($texts(), fn ($t) => str_contains($t, 'BLOCKED')), '古い配送不可はお知らせに出ない');
         Notification::query()->create(['incident_id' => $i->id, 'generation' => 1, 'notification_key' => 'new-blocked', 'kind' => 'NEW', 'route_key' => 'error_channel', 'severity' => 'ERROR', 'status' => 'BLOCKED', 'last_error_code' => 'route_not_configured', 'available_at' => now('UTC'), 'created_at' => now('UTC')]);
         $this->assertSame('VIOLATION', $blocked($check->evaluate($ctx()))->outcome->value);
+        $this->assertNotEmpty(array_filter($texts(), fn ($t) => str_contains($t, 'BLOCKED）になった通知が 1 件')));
     }
 
     /** 通知の詳細リンクは MONITOR_PUBLIC_BASE_URL を優先する（本番で APP_URL が別ホストだった回帰） */
