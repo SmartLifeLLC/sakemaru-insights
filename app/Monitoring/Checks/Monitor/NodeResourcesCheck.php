@@ -69,6 +69,13 @@ class NodeResourcesCheck extends AbstractCheck
                     ? Observation::warning($summary, $scope, null, $metrics, [], 'NODE_'.strtoupper($r['metric']))
                     : Observation::violation($summary, $scope, null, $metrics, [], 'NODE_'.strtoupper($r['metric']), $r['level'] === 'critical' ? Severity::CRITICAL : Severity::ERROR);
             }
+            // 必須プロセスから外されたもの（例: mod_php 構成で php-fpm を外す）の未解決案件は「監視対象外」として復旧させる
+            $required = array_keys(array_filter((array) ($latest['processes'] ?? []), fn ($p) => ! empty($p['required'])));
+            foreach ($this->activeScopeList('node.resources') as $sc) {
+                if (($sc['node'] ?? null) === $node->node_code && ($sc['metric'] ?? null) === 'process' && ! in_array($sc['process'] ?? '', $required, true)) {
+                    $obs[] = Observation::healthy("{$name} の {$sc['process']} は必須プロセスの監視対象から外れました。", ['node' => $node->node_code, 'metric' => 'process', 'process' => (string) $sc['process']], null, ['process_count' => null]);
+                }
+            }
             if ($bad === 0) {
                 $obs[] = Observation::healthy("{$name} の資源は全てしきい値内です。", ['node' => $node->node_code, 'metric' => 'summary'], null, ['cpu' => $latest['current']['cpu'] ?? null, 'mem_used_pct' => $latest['current']['mem_used_pct'] ?? null]);
             }

@@ -242,8 +242,9 @@ return [
         'process_scan_seconds' => 60,
         'required_processes' => array_values(array_filter(array_map('trim', explode(',', (string) env('MONITOR_NODE_PROCESSES', ''))))),
         'role_processes' => [
-            'web' => ['apache', 'php-fpm', 'supervisor'],
-            'batch' => ['php-fpm', 'supervisor'],
+            // 華の本番は Apache + mod_php（php-fpm 不使用）。php-fpm を使う配置は MONITOR_NODE_PROCESSES に明示する
+            'web' => ['apache', 'supervisor', 'cron'],
+            'batch' => ['supervisor', 'cron'],
             'db' => [],
             'other' => [],
         ],

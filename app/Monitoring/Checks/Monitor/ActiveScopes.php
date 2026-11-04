@@ -24,6 +24,17 @@ trait ActiveScopes
         return $out;
     }
 
+    /** @return array<int,array<string,mixed>> 未解決（ACTIVE）案件の scope の一覧 */
+    protected function activeScopeList(string $checkKey): array
+    {
+        $out = [];
+        foreach (Incident::query()->where('check_key', $checkKey)->where('observation_state', ObservationState::ACTIVE->value)->limit(500)->pluck('scope_json') as $scope) {
+            $out[] = is_array($scope) ? $scope : (array) json_decode((string) $scope, true);
+        }
+
+        return $out;
+    }
+
     protected function scopeKey(array $scope): string
     {
         return CanonicalJson::encode(Fingerprint::normalizeScope($scope));
