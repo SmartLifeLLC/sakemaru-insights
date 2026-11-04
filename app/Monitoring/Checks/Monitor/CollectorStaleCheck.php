@@ -32,7 +32,7 @@ class CollectorStaleCheck extends AbstractCheck
             }
             $site = $this->sites->siteById((int) $c->site_id)?->application_code ?? '?';
             $scope = ['collector' => $c->collector_uuid, 'node' => $c->node_code, 'site' => $site];
-            $age = $c->last_heartbeat_at ? (int) CarbonImmutable::instance($c->last_heartbeat_at)->diffInSeconds($ctx->nowUtc) : null;
+            $age = app(\App\Monitoring\Services\DeployWindow::class)->effectiveAge($c->last_heartbeat_at ? (int) CarbonImmutable::instance($c->last_heartbeat_at)->diffInSeconds($ctx->nowUtc) : null, $ctx->nowUtc);
             if ($age === null) {
                 $obs[] = Observation::violation("収集器 {$site}@{$c->node_code} から heartbeat を一度も受信していません。", $scope, null, [], [], 'MONITOR_COLLECTOR_NEVER');
             } elseif ($age > $err) {

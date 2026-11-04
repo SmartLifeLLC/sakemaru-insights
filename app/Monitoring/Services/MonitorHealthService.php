@@ -98,6 +98,9 @@ class MonitorHealthService
         if ($s['notifications']['blocked_count'] > 0) {
             $b[] = ['level' => 'error', 'text' => '直近 '.intdiv((int) ($cfg['notification']['blocked_window_seconds'] ?? 3600), 60).' 分に配送不可（BLOCKED）になった通知が '.$s['notifications']['blocked_count'].' 件あります。通知経路の設定を確認してください。'];
         }
+        foreach (app(DeployWindow::class)->active() as $w) {
+            $b[] = ['level' => 'warning', 'text' => 'デプロイ中（'.$w['node'].' / '.$w['started_at']->setTimezone('Asia/Tokyo')->format('H:i').' 開始、'.$w['until']->setTimezone('Asia/Tokyo')->format('H:i').' まで）: この間の監視停止は障害にしません。', 'kind' => 'deploy'];
+        }
         if ($s['checker']['state'] !== 'OK') {
             $b[] = ['level' => $s['checker']['state'] === 'NEVER' ? 'warning' : 'error', 'text' => $s['checker']['state'] === 'NEVER' ? '監視実行器がまだ一度も実行されていません（monitor:run-checks）。' : '監視実行器の最終実行から '.intdiv($s['checker']['age_seconds'], 60).' 分経過しています。表示データが古い可能性があります。'];
         }

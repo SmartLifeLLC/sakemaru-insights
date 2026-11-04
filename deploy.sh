@@ -39,6 +39,8 @@ cleanup() {
   if [[ -n "${MONITOR_TIMERS:-}" ]]; then
     sudo systemctl start ${MONITOR_TIMERS} || true
   fi
+  # デプロイ窓を閉じる（timer 再開後。開始に失敗していても無害）
+  ${PHP_BIN} artisan monitor:deploy-window end >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
@@ -93,6 +95,10 @@ if [[ -n "${MONITOR_TIMERS}" ]]; then
   echo "-> monitor timers stop:${MONITOR_TIMERS}"
   sudo systemctl stop ${MONITOR_TIMERS} || true
 fi
+
+# デプロイ窓を開く（30 分で自動的に閉じる）。この間、監視の timer 停止を自己監視の障害にしない
+echo "-> monitor deploy window start"
+${PHP_BIN} artisan monitor:deploy-window start --minutes=30 --reason="デプロイ ${DEPLOY_BRANCH}" || true
 
 echo "-> maintenance mode ON"
 ${PHP_BIN} artisan down || true

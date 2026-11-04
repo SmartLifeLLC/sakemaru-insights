@@ -39,7 +39,7 @@ class CheckStaleCheck extends AbstractCheck
             $scope = ['check' => $c->check_key, 'site' => $site];
             $limit = (int) $c->interval_seconds + (int) $c->grace_seconds;
             $last = $c->last_completed_at ? CarbonImmutable::instance($c->last_completed_at) : null;
-            $age = $last ? (int) $last->diffInSeconds($ctx->nowUtc) : null;
+            $age = app(\App\Monitoring\Services\DeployWindow::class)->effectiveAge($last ? (int) $last->diffInSeconds($ctx->nowUtc) : null, $ctx->nowUtc); // デプロイ窓の分は差し引く
             $created = $c->created_at ? (int) CarbonImmutable::instance($c->created_at)->diffInSeconds($ctx->nowUtc) : 0;
             if ($age === null && $created < $limit) {
                 continue; // 登録直後

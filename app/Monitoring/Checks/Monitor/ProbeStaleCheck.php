@@ -34,7 +34,7 @@ class ProbeStaleCheck extends AbstractCheck
         }
         $stale = (int) $ctx->config('stale_minutes', 5);
         $last = ProbeResult::query()->whereIn('target_id', $ids)->max('checked_at');
-        $age = $last ? (int) CarbonImmutable::parse($last, 'UTC')->diffInSeconds($ctx->nowUtc) : null;
+        $age = app(\App\Monitoring\Services\DeployWindow::class)->effectiveAge($last ? (int) CarbonImmutable::parse($last, 'UTC')->diffInSeconds($ctx->nowUtc) : null, $ctx->nowUtc);
         if ($age === null || $age > $stale * 60) {
             return new CheckResult([Observation::violation('HTTP プローブが'.($age === null ? '一度も実行されていません' : intdiv($age, 60).' 分実行されていません').'（対象 '.count($ids).' 件）。',
                 ['probe' => 'stale'], null, ['age_seconds' => $age, 'targets' => count($ids)], [], 'MONITOR_PROBE_STALE')]);

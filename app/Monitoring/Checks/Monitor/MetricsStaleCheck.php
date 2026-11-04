@@ -27,7 +27,7 @@ class MetricsStaleCheck extends AbstractCheck
         $obs = [];
         foreach (Node::query()->where('enabled', true)->orderBy('node_code')->get() as $n) {
             $scope = ['node' => $n->node_code];
-            $age = $n->last_heartbeat_at ? (int) CarbonImmutable::instance($n->last_heartbeat_at)->diffInSeconds($ctx->nowUtc) : null;
+            $age = app(\App\Monitoring\Services\DeployWindow::class)->effectiveAge($n->last_heartbeat_at ? (int) CarbonImmutable::instance($n->last_heartbeat_at)->diffInSeconds($ctx->nowUtc) : null, $ctx->nowUtc);
             $name = $n->display_name ?: $n->node_code;
             if ($age === null || $age > $err) {
                 $obs[] = Observation::violation("ノード {$name} から資源データが".($age === null ? '届いていません' : intdiv($age, 60).' 分届いていません').'（サーバー停止または収集器停止）。', $scope, null, ['age_seconds' => $age], [], 'MONITOR_METRICS_STALE');
