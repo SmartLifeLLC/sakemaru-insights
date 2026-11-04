@@ -47,7 +47,9 @@ class CheckRegistry
         Checks\Wms\IncomingImportErrorsCheck::class,
         Checks\Wms\QueueFailed::class,
         // 勘定衆
-        Checks\Core\StatsDailyAggregateCheck::class,
+        Checks\Core\SchedulerHeartbeatCheck::class,
+        Checks\Core\StatsJobSlotCheck::class,
+        Checks\Core\StatsJobDatesCheck::class,
         Checks\Core\StatsDailyFinalizeCheck::class,
         Checks\Core\SalesPerformanceCheck::class,
         Checks\Core\ClosingProcessCheck::class,
@@ -141,6 +143,11 @@ class CheckRegistry
                 }
                 $row->save();
             }
+        }
+        // 定義から消えたチェック（置き換え済み）は停止して「廃止」と表示する。行と履歴は残す
+        $known = array_map(fn ($c) => $c->definition()->key, $this->all());
+        foreach (CheckModel::query()->whereNotIn('check_key', $known)->where('implemented', true)->get() as $row) {
+            $row->forceFill(['enabled' => false, 'implemented' => false, 'display_name' => preg_replace('/（廃止）$/u', '', $row->display_name).'（廃止）'])->save();
         }
         $features = app(FeatureRegistry::class);
         $features->sync();

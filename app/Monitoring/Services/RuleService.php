@@ -194,7 +194,7 @@ class RuleService
     {
         $hhmm = fn ($t) => is_string($t) && preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $t);
         $bad = fn (string $why) => throw new \InvalidArgumentException("設定 {$key} が不正です（{$why}）。");
-        if ($key === 'slots') {
+        if ($key === 'slots' || str_starts_with($key, 'slots_')) {
             if (! is_array($v) || $v === []) {
                 $bad('HH:MM の配列、または曜日ごとの配列');
             }
@@ -257,5 +257,42 @@ class RuleService
         is_scalar($v) || $v === null || $bad('単一の値');
 
         return $v;
+    }
+
+    /**
+     * ノード登録の削除（名前変更前の残骸など）。資源データが 10 分以上届いていないノードだけ削除できる（受信中なら次の送信で再登録されるため）。
+     * そのノードの未解決インシデント（node.resources / metrics_stale）は「ノード登録の削除」として終了し、通知を取り消す。監査に残す。
+     */
+    public function deleteNode(Node $node, array $actor, string $reason): void
+    {
+        $this->requireReason($reason);
+        $now = \Carbon\CarbonImmutable::now('UTC');
+        if ($node->last_heartbeat_at && \Carbon\CarbonImmutable::instance($node->last_heartbeat_at)->gt($now->subMinutes(10))) {
+            throw new \InvalidArgumentException('このノードは 10 分以内に資源データを送っています。各サーバーの .env（MONITOR_NODE_CODE）を確認し、送信が止まってから削除してください。');
+        }
+        $code = $node->node_code;
+        DB::connection('monitor_store')->transaction(function () use ($node, $code, $actor, $reason, $now) {
+            $incidents = \App\Models\Monitoring\Incident::query()
+                ->whereIn('workflow_status', \App\Monitoring\Enums\WorkflowStatus::unresolvedValues())
+                ->where(fn ($q) => $q->where('scope_json->node', $code)->orWhere('scope_json->node_code', $code))
+                ->get();
+            $incidentService = app(IncidentService::class);
+            foreach ($incidents as $i) {
+                $before = ['workflow_status' => $i->workflow_status->value, 'observation_state' => $i->observation_state->value];
+                $i->observation_state = \App\Monitoring\Enums\ObservationState::RECOVERED;
+                $i->recovered_at = $i->recovered_at ?? $now;
+                $i->workflow_status = \App\Monitoring\Enums\WorkflowStatus::CLOSED;
+                $i->resolved_at = $i->resolved_at ?? $now;
+                $i->closed_at = $now;
+                $i->next_reminder_at = null;
+                $i->resolution_json = ['cause_category' => 'node_removed', 'action_taken' => 'ノード登録 '.$code.' を削除', 'verification' => $reason, 'resolved_by' => $actor['name'] ?? null];
+                $i->save();
+                app(NotificationQueue::class)->cancelPending($i, 'node_removed');
+                $incidentService->event($i, 'node_removed', $actor, $reason, $before, ['workflow_status' => 'CLOSED', 'observation_state' => 'RECOVERED'], 'node_removed:'.$code.':'.$i->id);
+            }
+            \App\Models\Monitoring\ServerMetric::query()->where('node_id', $node->id)->delete();
+            $node->delete();
+            $this->audit->record($actor, 'node.delete', 'node', $code, ['display_name' => $node->display_name, 'role' => $node->role, 'last_heartbeat_at' => $node->last_heartbeat_at?->format('c')], ['closed_incidents' => $incidents->count()], $reason);
+        });
     }
 }

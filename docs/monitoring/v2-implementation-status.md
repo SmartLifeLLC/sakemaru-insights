@@ -91,3 +91,10 @@ ELB の後ろでは、外部からの `/up`（HTTP プローブ）は生きて�
 4. 担当者名簿の登録とテスト発信（`MONITOR_PHONE_ALLOW_ENV=production` の環境のみ発信）。Twilio の音声（Polly 日本語）の聞こえ方を確認。
 5. MySQL での性能計測（V-085/V-140〜146: ダッシュボード 6 クエリ以内、1,000 万ログ、20 並列閲覧）。
 6. 旧 Python 監視との shadow 運用（v1 から継続）。
+
+## 追加（2026-11-04）: 勘定衆の定時処理・売上統計の実行監視（v2.3、仕様 `spec-v2.3-core-stats-job-monitoring.md`）
+
+- Core（`sakemaru-ai-core` ブランチ `feature/scheduled-job-runs`）: `core_scheduler_heartbeats`（各ノードの schedule:run の生存）と `core_scheduled_job_runs`（予定枠ごとの親処理: 起動ノード・開始時に確定した対象日・対象日ごとの子記録・終了コード・対象 0 件の見送り）を追加し、4 コマンドを計装。
+- Insights: `core.scheduler_heartbeat`（ノード単位 ERROR / 全停止 CRITICAL）、`core.stats_job_slot`（起動なし・長時間実行・失敗・ロック待ち）、`core.stats_job_dates`（対象日別の集計・部門同期の完了。別の日の成功では解消しない）、`core.stats_daily_finalize` を v2 に置換（確定記録＋確定印＋部門統計を同じ対象日で判定）。旧 `core.stats_daily_aggregate` は廃止（停止・履歴は保持）。未解決案件は判定範囲（26 時間）を外れても同じ対象で再確認を続ける。
+- 対処手順 RB-21（スケジューラ停止）・RB-22（定時処理の未起動・未完了・一部未集計）。
+- 残り（③）: 金額整合（`core.stats_consistency`）と月次（`core.stats_monthly`）。
