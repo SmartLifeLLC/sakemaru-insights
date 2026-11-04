@@ -116,6 +116,19 @@ class PreflightCommand extends Command
         $this->line('fallback_contact: '.(config('monitoring.notification.fallback_contact') ? 'set' : 'MISSING（本番移行の未完了条件）'));
         $this->line('external_heartbeat: '.(config('monitoring.notification.external_heartbeat_url') ? 'set' : 'MISSING（サーバー全停止は検知不可）'));
 
+        // セッション共有（他アプリと Cookie を共有する配置では、同じ接続・接頭辞なしの sessions でないと互いにログアウトさせ合う。2026-11-04 華本番）
+        if (config('session.driver') === 'database') {
+            $sessConn = config('session.connection') ?: config('database.default');
+            $prefix = (string) config("database.connections.{$sessConn}.prefix", '');
+            $table = $prefix.config('session.table', 'sessions');
+            $shared = (bool) config('session.domain');
+            $this->line(sprintf('session: driver=database connection=%s table=%s cookie=%s domain=%s', $sessConn, $table, config('session.cookie'), config('session.domain') ?: '(host only)'));
+            if ($shared && $prefix !== '') {
+                $this->error('session: Cookie を '.config('session.domain').' で共有しているのに、セッションの保存先が接頭辞付き（'.$table.'）です。他アプリと同じ sessions を使うよう SESSION_CONNECTION を接頭辞なしの接続（例: sakemaru）にしてください。');
+                $ok = false;
+            }
+        }
+
         // 収集器
         $cols = (array) config('monitoring.collectors');
         $this->line('collectors: '.count($cols));

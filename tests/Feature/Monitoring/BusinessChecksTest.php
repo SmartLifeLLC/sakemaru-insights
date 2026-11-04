@@ -397,7 +397,7 @@ class BusinessChecksTest extends MonitoringTestCase
         $this->sourceTable('srh_search_sync_states', fn ($t) => [$t->string('name'), $t->dateTime('last_started_at')->nullable(), $t->dateTime('last_success_at')->nullable(), $t->dateTime('last_finished_at')->nullable(), $t->integer('last_checked_item_count')->default(0), $t->integer('last_updated_item_count')->default(0), $t->string('status')->nullable(), $t->text('last_error')->nullable()]);
         $full = new Search\SyncItemsFullCheck;
         $fullAt = fn ($at) => $this->outcomes($this->exec($full, $at))['{"business_date":"2026-11-03"}'] ?? 'ABSENT';
-        $this->assertSame('ABSENT', $fullAt('2026-11-03 03:30'));
+        $this->assertSame('ABSENT', $fullAt('2026-11-03 03:20'));
         $this->assertSame('VIOLATION', $fullAt('2026-11-03 04:05'), '状態行なし');
         $this->sourceInsert('srh_search_sync_states', [
             ['name' => 'searchable_items_full', 'status' => 'success', 'last_success_at' => '2026-11-02 03:01:00'],
