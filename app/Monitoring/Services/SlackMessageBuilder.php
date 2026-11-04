@@ -50,7 +50,7 @@ class SlackMessageBuilder
         if ($runbook) {
             $lines[] = '初動: '.mb_substr(trim((string) preg_replace('/\s+/', ' ', (string) $runbook->first_checks)), 0, 200);
         }
-        $lines[] = '詳細: '.url('/monitor/incidents/'.$incident->public_id);
+        $lines[] = '詳細: '.self::publicUrl('/monitor/incidents/'.$incident->public_id);
         $lines[] = "(算盤 監視 / 通知番号 N-{$n->id})";
 
         return $this->sanitize(implode("\n", $lines));
@@ -66,7 +66,7 @@ class SlackMessageBuilder
             $i = $it['incident'];
             $lines[] = sprintf('• [%s][%s] %s %s — %s', $it['site'] ? $this->sites->label($it['site']->application_code) : '?', $i->severity->value, $i->public_id, $it['notification']->kind->label(), mb_substr($i->title, 0, 80));
         }
-        $lines[] = '詳細: '.url('/monitor/incidents');
+        $lines[] = '詳細: '.self::publicUrl('/monitor/incidents');
         $lines[] = '(算盤 監視 / まとめ通知)';
 
         return $this->sanitize(implode("\n", $lines));
@@ -121,5 +121,13 @@ class SlackMessageBuilder
     private function jst(?\DateTimeInterface $d): string
     {
         return $d ? \Carbon\CarbonImmutable::instance($d)->setTimezone('Asia/Tokyo')->format('m/d H:i') : '-';
+    }
+
+    /** 通知に載せる公開 URL。常駐プロセスでは APP_URL しか無いため、MONITOR_PUBLIC_BASE_URL（Twilio 応答用と同じ）を優先する */
+    public static function publicUrl(string $path): string
+    {
+        $base = rtrim((string) (config('monitoring.phone.public_base_url') ?: config('app.url')), '/');
+
+        return $base.'/'.ltrim($path, '/');
     }
 }

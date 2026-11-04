@@ -253,4 +253,14 @@ class DispatchAndPagingTest extends MonitoringTestCase
         Notification::query()->create(['incident_id' => $i->id, 'generation' => 1, 'notification_key' => 'new-blocked', 'kind' => 'NEW', 'route_key' => 'error_channel', 'severity' => 'ERROR', 'status' => 'BLOCKED', 'last_error_code' => 'route_not_configured', 'available_at' => now('UTC'), 'created_at' => now('UTC')]);
         $this->assertSame('VIOLATION', $blocked($check->evaluate($ctx()))->outcome->value);
     }
+
+    /** 通知の詳細リンクは MONITOR_PUBLIC_BASE_URL を優先する（本番で APP_URL が別ホストだった回帰） */
+    public function test_slack_links_use_public_base_url(): void
+    {
+        config()->set('app.url', 'https://lw-hana.net');
+        config()->set('monitoring.phone.public_base_url', 'https://insights.lw-hana.net');
+        $this->assertSame('https://insights.lw-hana.net/monitor/incidents/MON-000001', \App\Monitoring\Services\SlackMessageBuilder::publicUrl('/monitor/incidents/MON-000001'));
+        config()->set('monitoring.phone.public_base_url', null);
+        $this->assertSame('https://lw-hana.net/monitor/incidents', \App\Monitoring\Services\SlackMessageBuilder::publicUrl('monitor/incidents'));
+    }
 }
