@@ -334,6 +334,14 @@ class PageActionsTest extends MonitoringTestCase
         $this->assertSame('CLOSED', $first->refresh()->workflow_status->value);
         $this->assertSame(2, Incident::query()->whereIn('workflow_status', \App\Monitoring\Enums\WorkflowStatus::unresolvedValues())->count());
 
+        // ログ由来など自動復旧しない案件: 復旧確認 → 解決 → 終了をまとめて
+        $c = Livewire::test(Incidents::class)->set('selected', [$ids[1], $ids[2]]);
+        $c->callAction('bulk', ['action' => 'recover_resolve_close', 'cause_category' => 'application_bug', 'action_taken' => '修正済み', 'verification' => 'ログで再発なし', 'reason' => ''])->assertHasActionErrors(['reason']);
+        $c = Livewire::test(Incidents::class)->set('selected', [$ids[1], $ids[2]]);
+        $c->callAction('bulk', ['action' => 'recover_resolve_close', 'cause_category' => 'application_bug', 'action_taken' => '修正済み', 'verification' => 'ログで再発なし', 'reason' => '対象リクエストを再確認し再発なし'])->assertHasNoActionErrors();
+        $this->assertSame('ok', $c->get('flashLevel'));
+        $this->assertSame(0, Incident::query()->whereIn('workflow_status', \App\Monitoring\Enums\WorkflowStatus::unresolvedValues())->count());
+
         // 対応権限が無ければボタンは出ない
         config()->set('monitoring.permissions', ['monitor.view' => ['*'], 'monitor.respond' => ['nobody@example.com']]);
         Livewire::test(Incidents::class)->assertActionHidden('bulk');

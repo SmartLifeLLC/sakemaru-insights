@@ -136,6 +136,7 @@ class Incidents extends MonitorPage
         'mark_recovered' => '復旧確認を記録する（人手で確認した）',
         'resolve' => '対処完了（解決）にする ※復旧確認済みの案件だけ',
         'resolve_close' => '解決して終了する ※復旧確認済みの案件だけ',
+        'recover_resolve_close' => '復旧確認 → 解決 → 終了をまとめて記録する（ログ由来など自動復旧しない案件向け）',
         'close' => '終了する ※解決済みの案件だけ',
     ];
 
@@ -145,7 +146,7 @@ class Incidents extends MonitorPage
             ->visible(fn () => $this->can(\App\Monitoring\Services\MonitorAccess::RESPOND))
             ->disabled(fn () => $this->selected === [])
             ->modalHeading(fn () => '選択した '.count($this->selected).' 件に同じ対処を記録する')
-            ->modalDescription('1 件ずつ順に記録します（監査・通知の取消も個別に行われます）。状態が合わない案件（例: 未復旧の案件を解決にする）はスキップし、件数を表示します。')
+            ->modalDescription('1 件ずつ順に記録します（監査・通知の取消も個別に行われます）。状態が合わない案件はスキップし、件数を表示します。アプリログ由来の案件は自動では復旧しないため、「復旧確認 → 解決 → 終了をまとめて記録する」を選び、再確認した内容を入力してください。')
             ->modalSubmitActionLabel('一括で記録する')->modalCancelActionLabel('記録せず閉じる')->extraModalWindowAttributes(['class' => 'incoming-detail-modal'])->modalWidth('2xl')
             ->schema([
                 Select::make('action')->label('対処')->options(self::BULK_ACTIONS)->default('acknowledge')->required()->live(),
@@ -153,10 +154,10 @@ class Incidents extends MonitorPage
                 Select::make('cause_category')->label('原因分類')->options([
                     'data_delay' => '元データの遅延・未受信', 'batch_failure' => 'バッチ失敗・未実行', 'lock_contention' => '排他ロック競合', 'config' => '設定・スケジュール不備',
                     'external' => '外部システム・接続先', 'application_bug' => 'アプリ不具合', 'infra' => 'インフラ・容量', 'monitoring' => '監視側の問題（誤検知含む）', 'undetermined' => '未確定',
-                ])->visible(fn (Get $get) => in_array($get('action'), ['resolve', 'resolve_close'], true))->required(fn (Get $get) => in_array($get('action'), ['resolve', 'resolve_close'], true)),
-                Textarea::make('action_taken')->label('実施内容')->rows(2)->visible(fn (Get $get) => in_array($get('action'), ['resolve', 'resolve_close'], true))->required(fn (Get $get) => in_array($get('action'), ['resolve', 'resolve_close'], true)),
-                Textarea::make('verification')->label('検証結果（どう確認したか）')->rows(2)->visible(fn (Get $get) => in_array($get('action'), ['resolve', 'resolve_close'], true))->required(fn (Get $get) => in_array($get('action'), ['resolve', 'resolve_close'], true)),
-                Textarea::make('reason')->label(fn (Get $get) => $get('action') === 'mark_recovered' ? '再確認した内容（必須）' : 'コメント（全件に同じ内容を記録）')->rows(2)->required(fn (Get $get) => $get('action') === 'mark_recovered'),
+                ])->visible(fn (Get $get) => in_array($get('action'), ['resolve', 'resolve_close', 'recover_resolve_close'], true))->required(fn (Get $get) => in_array($get('action'), ['resolve', 'resolve_close', 'recover_resolve_close'], true)),
+                Textarea::make('action_taken')->label('実施内容')->rows(2)->visible(fn (Get $get) => in_array($get('action'), ['resolve', 'resolve_close', 'recover_resolve_close'], true))->required(fn (Get $get) => in_array($get('action'), ['resolve', 'resolve_close', 'recover_resolve_close'], true)),
+                Textarea::make('verification')->label('検証結果（どう確認したか）')->rows(2)->visible(fn (Get $get) => in_array($get('action'), ['resolve', 'resolve_close', 'recover_resolve_close'], true))->required(fn (Get $get) => in_array($get('action'), ['resolve', 'resolve_close', 'recover_resolve_close'], true)),
+                Textarea::make('reason')->label(fn (Get $get) => in_array($get('action'), ['mark_recovered', 'recover_resolve_close'], true) ? '再確認した内容（必須）' : 'コメント（全件に同じ内容を記録）')->rows(2)->required(fn (Get $get) => in_array($get('action'), ['mark_recovered', 'recover_resolve_close'], true)),
             ])
             ->action(fn (array $data) => $this->performBulk($data));
     }
@@ -174,7 +175,11 @@ class Incidents extends MonitorPage
         foreach ($incidents as $incident) {
             try {
                 $this->access()->authorize(auth()->user(), \App\Monitoring\Services\MonitorAccess::RESPOND, $this->siteCode((int) $incident->site_id));
-                $steps = $action === 'resolve_close' ? ['resolve', 'close'] : [$action];
+                $steps = match ($action) {
+                    'resolve_close' => ['resolve', 'close'],
+                    'recover_resolve_close' => ['mark_recovered', 'resolve', 'close'],
+                    default => [$action],
+                };
                 DB::connection('monitor_store')->transaction(function () use ($svc, $incident, $steps, $data) {
                     foreach ($steps as $step) {
                         $input = match ($step) {
