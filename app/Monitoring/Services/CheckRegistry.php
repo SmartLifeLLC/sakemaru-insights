@@ -47,7 +47,6 @@ class CheckRegistry
         Checks\Wms\IncomingImportErrorsCheck::class,
         Checks\Wms\QueueFailed::class,
         // 勘定衆
-        Checks\Core\SchedulerHeartbeatCheck::class,
         Checks\Core\StatsJobSlotCheck::class,
         Checks\Core\StatsJobDatesCheck::class,
         Checks\Core\StatsDailyFinalizeCheck::class,
