@@ -11,9 +11,8 @@ use Carbon\CarbonImmutable;
 
 /**
  * core.stats_daily_finalize: 前日分の日次確定（仕様 v2.3）。対象日＝前日として、
- * (1) daily_finalize が対象日で succeeded、(2) stats_daily_buyer_trade_profits の対象日に finalized_at 付きの行がある、
- * (3) stats_daily_department_trade_profits に対象日の行がある、を期限（deadline_time、既定 02:45）までに満たす。
- * 別の日付の成功で代用しない。finalized_at=NULL だけでは異常にしない（対象日に売上が無い日は行が無い → 確定記録の成功で判定）。
+ * (1) daily_finalize が対象日で succeeded、(2) 顧客別日次統計に行があるなら部門日次統計にも対象日の行がある、を期限（deadline_time、既定 02:45）までに満たす。
+ * 別の日付の成功で代用しない。finalized_at は参考値（華 本番では確定後の再集計で行が作り直され NULL に戻るため、条件にしない）。
  * 指紋は対象日。未解決は判定範囲を外れても同じ対象日で再確認する。
  */
 class StatsDailyFinalizeCheck extends BusinessCheck
@@ -64,9 +63,6 @@ class StatsDailyFinalizeCheck extends BusinessCheck
             }
             $buyer = (int) ($src->select('SELECT COUNT(*) AS c FROM stats_daily_buyer_trade_profits WHERE stats_date = ? AND finalized_at IS NOT NULL', [$target])[0]->c ?? 0);
             $buyerAny = $buyer > 0 ? $buyer : (int) ($src->select('SELECT COUNT(*) AS c FROM stats_daily_buyer_trade_profits WHERE stats_date = ?', [$target])[0]->c ?? 0);
-            if ($buyerAny > 0 && $buyer === 0) {
-                $missing[] = '顧客別日次統計の確定印（finalized_at）';
-            }
             $dept = (int) ($src->select('SELECT COUNT(*) AS c FROM stats_daily_department_trade_profits WHERE stats_date = ?', [$target])[0]->c ?? 0);
             if ($buyerAny > 0 && $dept === 0) {
                 $missing[] = '部門日次統計の行';
