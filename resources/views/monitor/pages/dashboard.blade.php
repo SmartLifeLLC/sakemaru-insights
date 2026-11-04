@@ -70,6 +70,13 @@
         </div>
         </div>{{-- /dash-top --}}
 
+        @php($nodeRows = $this->nodeRows())
+        @if ($nodeRows)
+            <section class="dash-nodes" x-show="shown('nodes')">
+                <x-monitor.node-panels :rows="$nodeRows" :range="$this->nodeRange" setter="setNodeRange" />
+            </section>
+        @endif
+
         <div class="main-grid">
             <section class="panel" x-show="shown('trend')">
                 <div class="panel-head">
@@ -134,26 +141,6 @@
             </section>
         </div>
 
-        @if ($d['nodes'])
-            <section class="wide-panel" x-show="shown('nodes')">
-                <div class="node-grid">
-                    @foreach ($d['nodes'] as $n)
-                        <a class="panel node-card" href="{{ NodeDetail::getUrl(['code' => $n['node']->node_code]) }}">
-                            <h3><span class="dot {{ $n['fresh'] ? 'green' : 'red' }}"></span>{{ $n['node']->display_name }} @if ($n['burst'])<span class="badge warn">1 秒記録中</span>@endif</h3>
-                            <small>{{ $n['node']->node_code }} · {{ $n['node']->role }} · {{ $n['fresh'] ? P::ago($n['node']->last_heartbeat_at) : '資源データ停止' }}</small>
-                            <div class="gauges">
-                                <div class="gauge">{!! Svg::gauge($n['cpu'], $n['levels']['cpu']) !!}<span>CPU %</span></div>
-                                <div class="gauge">{!! Svg::gauge($n['mem'], $n['levels']['mem']) !!}<span>メモリ %</span></div>
-                                <div class="gauge">{!! Svg::gauge($n['disk'], $n['levels']['disk']) !!}<span>ディスク %</span></div>
-                                <div class="gauge">{!! Svg::gauge($n['load'], $n['levels']['load']) !!}<span>負荷 %</span></div>
-                            </div>
-                            <x-monitor.procs :latest="(array) $n['node']->latest_json" :fresh="$n['fresh']" />
-                            <div style="margin-top:8px;position:relative;height:28px">{!! Svg::spark($n['spark'], 220, 28) !!}</div>
-                        </a>
-                    @endforeach
-                </div>
-            </section>
-        @endif
 
         <section class="panel table-panel" x-show="shown('logs')">
             <div class="panel-head"><div><h2 class="panel-title">最新の監視ログ</h2><p class="panel-sub">受信の新しい順に 5 件</p></div><a class="btn link" href="{{ Logs::getUrl() }}">監視ログを開く {!! Icon::svg('arrow') !!}</a></div>
@@ -166,7 +153,7 @@
                 <aside class="drawer" role="dialog" aria-modal="true" aria-label="表示をカスタマイズ" x-on:keydown.escape.window="picker = false">
                     <div class="drawer-top"><h2>表示をカスタマイズ</h2><button type="button" class="icon-btn" x-on:click="picker = false" aria-label="閉じる">{!! Icon::svg('close') !!}</button></div>
                     <p class="drawer-intro">表示するセクションを選びます。設定はこのブラウザーにだけ保存されます（保存できない環境では既定の表示）。</p>
-                    @foreach (['kpi' => ['主要指標', '監視実行数・正常判定率・未解決・通知成功率'], 'trend' => ['異常検知数の推移', '今回と前期間'], 'services' => ['サービスの稼働状況', '24 本の時間バー'], 'flow' => ['処理フロー', '検知から配送結果まで'], 'incidents' => ['対応が必要な問題', '重大度順 5 件'], 'nodes' => ['ノード', 'CPU・メモリ・ディスク・負荷'], 'logs' => ['最新の監視ログ', '5 件']] as $w => [$t, $sub])
+                    @foreach (['kpi' => ['主要指標', '監視実行数・正常判定率・未解決・通知成功率'], 'trend' => ['異常検知数の推移', '今回と前期間'], 'services' => ['サービスの稼働状況', '24 本の時間バー'], 'flow' => ['処理フロー', '検知から配送結果まで'], 'incidents' => ['対応が必要な問題', '重大度順 5 件'], 'nodes' => ['システム負荷', 'サーバーごとの時系列（2 台横並び）'], 'logs' => ['最新の監視ログ', '5 件']] as $w => [$t, $sub])
                         <div class="widget-picker"><div><b>{{ $t }}</b><span>{{ $sub }}</span></div><button type="button" class="switch" role="switch" :aria-checked="shown('{{ $w }}') ? 'true' : 'false'" x-on:click="toggle('{{ $w }}')" aria-label="{{ $t }}"></button></div>
                     @endforeach
                     <div class="drawer-actions"><button type="button" class="btn" x-on:click="picker = false">変更せず閉じる</button></div>
