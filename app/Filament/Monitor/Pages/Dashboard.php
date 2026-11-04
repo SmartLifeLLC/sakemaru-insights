@@ -17,6 +17,21 @@ use Livewire\Attributes\Url;
 /** ダッシュボード（v2 第6.3）。元データは counters・未解決インシデント（索引）・最新ログ 5 件・ノードの直近値だけ。 */
 class Dashboard extends MonitorPage
 {
+    /** システム負荷ブロックの表示範囲（ノード一覧と同じ段階） */
+    #[\Livewire\Attributes\Url]
+    public string $nodeRange = '1d';
+
+    public function setNodeRange(string $r): void
+    {
+        $this->nodeRange = isset(\App\Monitoring\Resources\NodeSeries::LABELS[$r]) ? $r : '1d';
+    }
+
+    /** @return array<int,array<string,mixed>> */
+    public function nodeRows(): array
+    {
+        return \App\Monitoring\Resources\NodeOverview::rows($this->nodeRange);
+    }
+
     protected static ?string $title = 'ダッシュボード';
 
     protected static ?string $slug = '/';
