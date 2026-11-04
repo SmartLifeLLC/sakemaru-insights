@@ -74,12 +74,22 @@ class DispatchAndPagingTest extends MonitoringTestCase
 
     public function test_permanent_4xx_blocks_and_raises_self_monitoring_incident(): void
     {
-        Http::fake(['hooks.slack.com/*' => Http::response('no_service', 404)]);
+        $fixed = false;
+        Http::fake(['hooks.slack.com/*' => function () use (&$fixed) {
+            return $fixed ? Http::response('ok', 200) : Http::response('no_service', 404);
+        }]);
         app(ObservationIngestor::class)->ingestInternal([$this->event()]);
         $stats = $this->dispatcher()->dispatch();
         $this->assertSame(1, $stats['blocked']);
         $this->assertSame('BLOCKED', Notification::query()->where('incident_id', 1)->sole()->status->value);
         $this->assertTrue(Incident::query()->where('error_code', 'MONITOR_NOTIFICATION_BLOCKED')->exists(), '配送異常がエラー管理に表示される');
+
+        // 経路が直って配送できたら、配送不可の自己監視案件は自動で復旧する（華 本番で残り続けた回帰）
+        $fixed = true;
+        app(ObservationIngestor::class)->ingestInternal([$this->event(['scope' => ['fp' => 'second'], 'summary' => '2 件目'])]);
+        $this->dispatcher()->dispatch();
+        $blocked = Incident::query()->where('error_code', 'MONITOR_NOTIFICATION_BLOCKED')->sole();
+        $this->assertSame('RECOVERED', $blocked->observation_state->value);
     }
 
     public function test_missing_route_blocks_instead_of_pretending_delivery(): void
