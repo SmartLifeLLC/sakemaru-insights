@@ -5,7 +5,6 @@ namespace App\Filament\Monitor\Pages;
 use App\Filament\Monitor\MonitorPage;
 use App\Models\Monitoring\Incident;
 use App\Models\Monitoring\Node;
-use App\Models\Monitoring\ServerMetric;
 use App\Monitoring\Resources\MetricFile;
 use App\Monitoring\Resources\ThresholdEvaluator;
 use Carbon\CarbonImmutable;
@@ -89,46 +88,18 @@ class NodeDetail extends MonitorPage
         ];
     }
 
-    /** 5 分集約を表示点数（最大 400）に間引く（平均・最大を保持） */
+    /** 5 分集約（NodeSeries と共用。24h / 7d / 1y） */
     private function aggSeries(Node $n, CarbonImmutable $now, int $cores): array
     {
-        $from = match ($this->range) {
-            '7d' => $now->subDays(7),
-            '1y' => $now->subYear(),
-            default => $now->subDay(),
+        $r = match ($this->range) {
+            '7d' => '1w',
+            '1y' => '1y',
+            default => '1d',
         };
-        $step = match ($this->range) {
-            '7d' => 3600,
-            '1y' => 86400,
-            default => 300,
-        };
-        // 7 日・1 年は DB 側で時間/日に集約してから読む（1 年分 10 万行を毎回転送しない）
-        $q = ServerMetric::query()->where('node_id', $n->id)->where('bucket_start', '>=', $from);
-        $driver = $q->getConnection()->getDriverName();
-        $bucketExpr = $driver === 'sqlite'
-            ? "(CAST(strftime('%s', bucket_start) AS INTEGER) / {$step}) * {$step}"
-            : "FLOOR(UNIX_TIMESTAMP(bucket_start) / {$step}) * {$step}";
-        $rows = $q->selectRaw("{$bucketExpr} AS b, COUNT(*) AS n, AVG(cpu_avg) AS cpu_avg, MAX(cpu_max) AS cpu_max, AVG(iowait_avg) AS iowait_avg, AVG(load1_avg) AS load1_avg, AVG(mem_used_pct_avg) AS mem_used_pct_avg, MAX(mem_used_pct_max) AS mem_used_pct_max, MAX(disk_used_pct_max) AS disk_used_pct_max, MAX(swap_used_pct_max) AS swap_used_pct_max")
-            ->groupByRaw($bucketExpr)->orderByRaw('b')->limit(400)->get();
-        $buckets = [];
-        foreach ($rows as $r) {
-            $buckets[(int) $r->b] = ['n' => (int) $r->n, 'cpu_avg' => (float) $r->cpu_avg * (int) $r->n, 'cpu_max' => (float) $r->cpu_max, 'iowait_avg' => (float) $r->iowait_avg * (int) $r->n,
-                'load1_avg' => (float) $r->load1_avg * (int) $r->n, 'mem_used_pct_avg' => (float) $r->mem_used_pct_avg * (int) $r->n, 'mem_used_pct_max' => (float) $r->mem_used_pct_max,
-                'disk_used_pct_max' => (float) $r->disk_used_pct_max, 'swap_used_pct_max' => (float) $r->swap_used_pct_max];
-        }
-        $labelFmt = $this->range === '24h' ? 'H:i' : ($this->range === '7d' ? 'm/d H時' : 'm/d');
-        $out = ['labels' => [], 'cpu' => [], 'cpu_max' => [], 'mem' => [], 'disk' => [], 'load' => [], 'iowait' => [], 'source' => '5 分集約（DB）', 'burst' => null];
-        foreach ($buckets as $ts => $b) {
-            $out['labels'][] = CarbonImmutable::createFromTimestamp($ts, 'Asia/Tokyo')->format($labelFmt);
-            $out['cpu'][] = round($b['cpu_avg'] / $b['n'], 1);
-            $out['cpu_max'][] = round($b['cpu_max'], 1);
-            $out['mem'][] = round($b['mem_used_pct_avg'] / $b['n'], 1);
-            $out['disk'][] = round($b['disk_used_pct_max'], 1);
-            $out['load'][] = round($b['load1_avg'] / $b['n'] / $cores * 100, 1);
-            $out['iowait'][] = round($b['iowait_avg'] / $b['n'], 1);
-        }
+        $s = \App\Monitoring\Resources\NodeSeries::agg($n, $r, $now, $cores);
+        $s['burst'] = null;
 
-        return $out;
+        return $s;
     }
 
     /** 指定範囲（最大 6 時間）の 30 秒値と 1 秒バースト（このサーバー上のファイル） */

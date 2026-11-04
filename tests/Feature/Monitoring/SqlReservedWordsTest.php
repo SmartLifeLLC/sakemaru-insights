@@ -30,6 +30,10 @@ class SqlReservedWordsTest extends TestCase
             }
             $scanned++;
             foreach (array_unique($m[1]) as $alias) {
+                // CAST(x AS INTEGER) などの型名は別名ではない
+                if (in_array(strtoupper($alias), ['INTEGER', 'UNSIGNED', 'SIGNED', 'CHAR', 'DECIMAL', 'DATE', 'DATETIME', 'JSON', 'BINARY', 'DOUBLE', 'FLOAT'], true)) {
+                    continue;
+                }
                 if (in_array(strtoupper($alias), self::RESERVED, true)) {
                     $bad[] = str_replace($dir.'/', '', $file->getPathname()).': AS '.$alias;
                 }
