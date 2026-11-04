@@ -231,6 +231,16 @@ class PageActionsTest extends MonitoringTestCase
         }
         $svc->update($op, ['config' => ['unfinished_check_time' => '06:30']], ['id' => 1, 'name' => 't'], 'ok');
         $this->assertSame('06:30', $op->fresh()->config_json['unfinished_check_time']);
+
+        // デプロイ（registry sync）後: 画面で変更したキーは保持、それ以外はコードの既定値に追従する
+        $search = Check::query()->where('check_key', 'search.sync_items_full')->sole();
+        $search->forceFill(['config_json' => array_merge($search->config_json, ['grace_minutes' => 60])])->save(); // 旧既定値が DB に残っている状態
+        $this->bootRegistries();
+        $this->assertSame(30, $search->fresh()->config_json['grace_minutes'], '画面で変えていないキーは新しい既定値になる');
+        $check->refresh();
+        $this->assertSame(45, $check->config_json['grace_minutes'], '画面で変えたキーは保持');
+        $this->assertSame(['mon' => ['13:30'], 'sun' => ['23:35']], $check->config_json['slots']);
+        $this->assertSame('06:30', $op->fresh()->config_json['unfinished_check_time']);
     }
 
     public function test_pause_button_is_on_every_page_and_start_action_can_pause(): void

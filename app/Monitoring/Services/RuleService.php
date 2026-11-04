@@ -76,6 +76,8 @@ class RuleService
                 }
             }
             $check->config_json = array_merge((array) $check->config_json, $allowed) ?: null;
+            // 画面で変更したキーを記録する。記録の無いキーはデプロイ時にコードの既定値へ追従する（CheckRegistry::sync）
+            $rule['config_keys'] = array_values(array_unique(array_merge((array) ($rule['config_keys'] ?? []), array_keys($allowed))));
         }
         $check->rule_json = $rule ?: null;
         $check->updated_user_id = $actor['id'] ?? null;
