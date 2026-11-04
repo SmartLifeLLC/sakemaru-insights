@@ -10,7 +10,7 @@ use Carbon\CarbonImmutable;
  */
 class RunbookRegistry
 {
-    public const VERSION = 2;
+    public const VERSION = 3;
 
     /** @return array<string,array<string,string>> */
     public static function definitions(): array
@@ -255,6 +255,30 @@ class RunbookRegistry
                 'verification_steps' => 'プローブが連続して 2xx になり、監視が RECOVERED になる。',
                 'escalation' => '該当サービス担当 → インフラ担当',
                 'prevention_notes' => '/up は DB・セッションに触れない軽量ルートにする。',
+            ],
+            'RB-21' => [
+                'title' => '勘定衆のスケジューラ（cron）停止',
+                'symptoms' => 'core_scheduler_heartbeats の last_tick_at が 3 分以上更新されない。ノード単位（1 台）か全ノードか。',
+                'impact' => 'そのノードの定時処理（統計の再集計・前日確定・部門同期・月次・締め）が起動しない。全ノード停止なら統計が更新されず、翌朝の帳票・画面の数字が古くなる。',
+                'first_checks' => "1. 該当ノードで `systemctl status cron` と `crontab -l -u www-data`（schedule:run の行があるか）\n2. `php artisan schedule:run` を手で 1 回実行してエラーが出ないか（.env・権限・ディスク）\n3. 直前のデプロイ・サーバー再起動・時刻ずれ（chrony）\n4. DB 接続（heartbeat は DB に書く。DB 障害なら他の案件も同時に出る）",
+                'read_only_checks' => '・監視ログで CORE_SCHEDULER_STALE の開始時刻\n・同じノードの資源（RB-19）と Apache / PHP の生存\n・core_scheduled_job_runs にそのノードの最後の実行記録',
+                'decision_steps' => "A. 1 ノードだけ停止・他ノードは稼働 → onOneServer の処理はもう一方が実行するので業務影響は限定的。該当ノードの cron を復旧\nB. 全ノード停止 → 直近の予定枠（02:00 / 07:00 …）が飛んでいないか core.stats_job_slot を確認。飛んだ枠は復旧後に担当者が手動実行の要否を判断\nC. DB 接続失敗が原因 → DB 側の案件を優先",
+                'recovery_procedure' => 'cron の再起動・crontab の修正は担当者が行う。監視画面からは実行しない。飛んだ予定枠の再実行はこの手順書では行わず RB-22 に従う。',
+                'verification_steps' => 'last_tick_at が 1 分ごとに更新され、監視が RECOVERED になる。次の予定枠が起動する（core.stats_job_slot が正常）。',
+                'escalation' => 'インフラ担当 → 勘定衆担当',
+                'prevention_notes' => 'cron 行は構成管理に含め、デプロイで消えないようにする。',
+            ],
+            'RB-22' => [
+                'title' => '統計の定時処理が未起動・未完了・一部未集計',
+                'symptoms' => 'STATS_JOB_NOT_STARTED（予定枠に起動記録なし）/ STATS_JOB_OVERRUN（期限を過ぎても running）/ STATS_JOB_FAILED / STATS_DATE_INCOMPLETE（対象日の一部が未集計）/ STATS_DEPT_SYNC_INCOMPLETE / STATS_FINALIZE_MISSING（前日確定が未完了）。',
+                'impact' => '顧客別・部門別の売上統計が古い、または一部の日付だけ欠けた状態で帳票・画面に出る。前日確定が無いと日次帳票の数字が確定しない。',
+                'first_checks' => "1. スケジューラ生存（RB-21）。全ノード停止なら先にそちら\n2. core_scheduled_job_runs の該当枠: 起動ノード・target_dates・result_json・error_message\n3. 未完了の対象日について stats_import_runs（daily_aggregate / daily_department_sync）の status と error_message\n4. running が長い場合: `SHOW PROCESSLIST` でロック待ち（GET_LOCK）・長時間クエリ。前の枠の処理が終わっていない（withoutOverlapping）",
+                'read_only_checks' => '・該当日の売上伝票（earnings）の更新件数が極端に多くないか（再集計が長引く原因）\n・同じ日付の過去の実行時間（通常数秒〜数十秒／日）',
+                'decision_steps' => "A. 起動なし＋cron 正常 → 前の枠が running（重なり見送り）か、デプロイ中。前の枠の完了を待つ。次の枠で対象日が再び対象になれば自然に解消する\nB. 失敗 → error_message の原因（デッドロック・外部接続・データ不整合）。原因除去後に担当者が `stats:refresh-all-updated-daily-buyer-trade-profit --previous_boundary=N` で再実行\nC. 一部の対象日だけ未集計 → その日だけ `stats:create-daily-buyer-trade-profit --stats_date=YYYY-MM-DD --sync` で再集計（部門同期は --sync-departments）\nD. 前日確定が未完了 → 再集計の失敗が原因なら B を先に。確定だけ残っていれば `stats:finalize-daily-buyer-trade-profit --stats_date=前日`",
+                'recovery_procedure' => '再実行はすべて担当者が勘定衆のサーバーで行う。監視からは実行しない。再実行は対象日を指定し、同じ日付の成功で監視が復旧することを確認する（別の日付の成功では解消しない）。',
+                'verification_steps' => '該当の対象日・予定枠の案件が RECOVERED になる。core.stats_daily_finalize が前日分で正常。',
+                'escalation' => '勘定衆担当 → DB 担当（ロック・長時間クエリの場合）',
+                'prevention_notes' => '予定枠を増減したら Core の config/scheduled_jobs.php と監視ルール（slots_*）の両方を更新する。',
             ],
         ];
     }

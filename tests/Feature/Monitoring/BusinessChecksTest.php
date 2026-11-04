@@ -235,39 +235,134 @@ class BusinessChecksTest extends MonitoringTestCase
 
     private function statsTable(): void
     {
-        $this->sourceTable('stats_import_runs', fn ($t) => [$t->id(), $t->string('job_type'), $t->string('source_system'), $t->string('status'), $t->dateTime('started_at'), $t->text('error_message')->nullable(), $t->dateTime('created_at')->nullable()]);
+        $this->sourceTable('stats_import_runs', fn ($t) => [$t->id(), $t->string('job_type'), $t->string('source_system'), $t->string('status'), $t->date('period_from')->nullable(), $t->date('period_to')->nullable(), $t->dateTime('started_at'), $t->dateTime('finished_at')->nullable(), $t->text('error_message')->nullable(), $t->dateTime('created_at')->nullable()]);
+        $this->sourceTable('core_scheduled_job_runs', fn ($t) => [$t->id(), $t->string('job_name'), $t->string('slot_key'), $t->string('node')->default('web1'), $t->string('status')->default('running'), $t->string('skip_reason')->nullable(), $t->dateTime('started_at'), $t->dateTime('finished_at')->nullable(), $t->integer('exit_code')->nullable(), $t->text('target_dates_json')->default('[]'), $t->integer('target_count')->default(0), $t->text('options_json')->nullable(), $t->text('result_json')->nullable(), $t->text('error_message')->nullable()]);
+        $this->sourceTable('core_scheduler_heartbeats', fn ($t) => [$t->string('node'), $t->dateTime('last_tick_at')]);
+        $this->sourceTable('stats_daily_buyer_trade_profits', fn ($t) => [$t->id(), $t->date('stats_date'), $t->dateTime('finalized_at')->nullable()]);
+        $this->sourceTable('stats_daily_department_trade_profits', fn ($t) => [$t->id(), $t->date('stats_date')]);
     }
 
-    public function test_core_stats_daily_aggregate_slots(): void
+    private function jobRun(array $o): void
+    {
+        $this->sourceInsert('core_scheduled_job_runs', [array_merge(['job_name' => 'stats.refresh_updated', 'slot_key' => '2026-11-03 07:00', 'status' => 'succeeded', 'started_at' => '2026-11-03 07:00:10', 'finished_at' => '2026-11-03 07:08:00', 'exit_code' => 0, 'target_dates_json' => '["2026-11-02","2026-11-03"]', 'target_count' => 2], $o)]);
+    }
+
+    /** 予定枠: 起動なし → 違反、起動済み・実行中 → 正常、期限超過の実行中 → 違反、失敗 → 違反、対象 0 件 → 正常 */
+    public function test_core_stats_job_slot_detects_not_started_overrun_failed_and_skipped(): void
     {
         $this->statsTable();
-        $c = new Core\StatsDailyAggregateCheck;
-        $cfg = ['slots' => ['02:00', '07:00']];
-        $this->sourceInsert('stats_import_runs', [
-            ['job_type' => 'daily_aggregate', 'source_system' => 'core_earning', 'status' => 'succeeded', 'started_at' => '2026-11-03 02:01:00'],
-            ['job_type' => 'daily_aggregate', 'source_system' => 'core_earning', 'status' => 'succeeded', 'started_at' => '2026-11-03 07:00:20'],
-        ]);
-        $o = $this->outcomes($this->exec($c, '2026-11-03 07:40', $cfg));
-        $this->assertSame('HEALTHY', $o['{"business_date":"2026-11-03","slot":"02:00"}'], '02:00 は部門同期不要');
-        $this->assertSame('VIOLATION', $o['{"business_date":"2026-11-03","slot":"07:00"}'], '07:00 は部門同期も必要');
-        $this->sourceInsert('stats_import_runs', ['job_type' => 'daily_department_sync', 'source_system' => 'core_earning', 'status' => 'succeeded', 'started_at' => '2026-11-03 07:00:21']);
-        $this->assertSame('HEALTHY', $this->outcomes($this->exec($c, '2026-11-03 07:40', $cfg))['{"business_date":"2026-11-03","slot":"07:00"}']);
-        $this->sourceInsert('stats_import_runs', ['job_type' => 'daily_aggregate', 'source_system' => 'core_earning', 'status' => 'failed', 'started_at' => '2026-11-03 07:05:00', 'error_message' => 'boom']);
-        $this->assertSame('VIOLATION', $this->outcomes($this->exec($c, '2026-11-03 07:40', $cfg))['{"business_date":"2026-11-03","slot":"07:00"}'], 'failed');
-        $this->assertArrayNotHasKey('{"business_date":"2026-11-03","slot":"07:00"}', $this->outcomes($this->exec($c, '2026-11-03 01:00', $cfg)));
+        $c = new Core\StatsJobSlotCheck;
+        $cfg = ['slots_refresh' => ['07:00', '08:10'], 'slots_finalize' => ['02:00'], 'slots_sync' => ['02:20'], 'slots_monthly' => ['15:00']];
+        $k = fn ($job, $slot) => '{"business_date":"2026-11-03","job":"'.$job.'","slot":"'.$slot.'"}';
+
+        // 07:03: まだ開始猶予内 → 判定なし（NOT_DUE）。07:06: 記録なし → 起動なし
+        $this->assertArrayNotHasKey($k('stats.refresh_updated', '07:00'), array_filter($this->outcomes($this->exec($c, '2026-11-03 07:03', $cfg)), fn ($v) => $v !== 'NOT_DUE'));
+        $o = $this->outcomes($this->exec($c, '2026-11-03 07:06', $cfg));
+        $this->assertSame('VIOLATION', $o[$k('stats.refresh_updated', '07:00')], '起動なし');
+        $this->assertSame('VIOLATION', $o[$k('stats.finalize_daily', '02:00')], '確定も起動なし');
+        $this->assertSame('VIOLATION', $o[$k('stats.sync_departments', '02:20')]);
+
+        // 実行中（期限内）→ 正常、期限（30 分）超過 → 違反
+        $this->jobRun(['status' => 'running', 'finished_at' => null, 'exit_code' => null]);
+        $this->assertSame('HEALTHY', $this->outcomes($this->exec($c, '2026-11-03 07:20', $cfg))[$k('stats.refresh_updated', '07:00')]);
+        $this->assertSame('VIOLATION', $this->outcomes($this->exec($c, '2026-11-03 07:40', $cfg))[$k('stats.refresh_updated', '07:00')], '長時間実行');
+
+        // 確定（02:00）は 02:45 期限。02:30 実行中は正常、02:50 は違反
+        $this->jobRun(['job_name' => 'stats.finalize_daily', 'slot_key' => '2026-11-03 02:00', 'status' => 'running', 'started_at' => '2026-11-03 02:00:05', 'finished_at' => null, 'exit_code' => null, 'target_dates_json' => '["2026-11-02"]', 'target_count' => 1]);
+        $this->assertSame('HEALTHY', $this->outcomes($this->exec($c, '2026-11-03 02:30', $cfg))[$k('stats.finalize_daily', '02:00')]);
+        $this->assertSame('VIOLATION', $this->outcomes($this->exec($c, '2026-11-03 02:50', $cfg))[$k('stats.finalize_daily', '02:00')]);
+
+        // 失敗 / 対象 0 件 / ロック待ち連続
+        $this->jobRun(['slot_key' => '2026-11-03 08:10', 'status' => 'failed', 'started_at' => '2026-11-03 08:10:10', 'exit_code' => 1, 'error_message' => 'failed dates: 2026-11-02']);
+        $this->assertSame('VIOLATION', $this->outcomes($this->exec($c, '2026-11-03 08:30', $cfg))[$k('stats.refresh_updated', '08:10')], '失敗');
+        $this->jobRun(['job_name' => 'stats.sync_departments', 'slot_key' => '2026-11-03 02:20', 'status' => 'skipped', 'skip_reason' => 'no_targets', 'started_at' => '2026-11-03 02:20:03', 'target_dates_json' => '[]', 'target_count' => 0]);
+        $this->assertSame('HEALTHY', $this->outcomes($this->exec($c, '2026-11-03 02:50', $cfg))[$k('stats.sync_departments', '02:20')], '対象 0 件は正常');
+        $this->jobRun(['job_name' => 'stats.refresh_monthly', 'slot_key' => '2026-11-03 15:00', 'status' => 'skipped', 'skip_reason' => 'lock_busy', 'started_at' => '2026-11-03 15:00:03']);
+        $this->jobRun(['job_name' => 'stats.refresh_monthly', 'slot_key' => '2026-11-03 15:00', 'status' => 'skipped', 'skip_reason' => 'lock_busy', 'started_at' => '2026-11-03 15:01:03']);
+        $this->assertSame('WARNING', $this->outcomes($this->exec($c, '2026-11-03 15:10', $cfg))[$k('stats.refresh_monthly', '15:00')], 'ロック待ちが続く');
+
+        // Core 未導入（テーブルなし）→ 確認不可
+        \Illuminate\Support\Facades\Schema::connection('monitor_source')->drop('core_scheduled_job_runs');
+        $this->assertSame('UNKNOWN', $this->only($this->exec($c, '2026-11-03 07:06', $cfg)));
     }
 
-    public function test_core_stats_daily_finalize(): void
+    /** 継続追跡: 判定範囲（26 時間）を外れても、未解決案件の予定枠は同じ対象で再確認し、完了したら正常になる */
+    public function test_core_stats_job_slot_keeps_tracking_open_incidents_beyond_lookback(): void
+    {
+        $this->statsTable();
+        $this->bootRegistries();
+        $c = new Core\StatsJobSlotCheck;
+        $cfg = ['slots_refresh' => ['07:00'], 'slots_finalize' => ['02:00'], 'slots_sync' => ['02:20'], 'slots_monthly' => ['15:00']];
+        app(\App\Monitoring\Services\ObservationIngestor::class)->ingestInternal([$this->event(['application_code' => 'CORE', 'check_key' => 'core.stats_job_slot', 'scope' => ['job' => 'stats.refresh_updated', 'business_date' => '2026-11-01', 'slot' => '07:00'], 'business_date' => '2026-11-01', 'summary' => '起動なし', 'error_code' => 'STATS_JOB_NOT_STARTED'])]);
+        $o = $this->outcomes($this->exec($c, '2026-11-03 12:00', $cfg));
+        $this->assertSame('VIOLATION', $o['{"business_date":"2026-11-01","job":"stats.refresh_updated","slot":"07:00"}'], '2 日前の枠も未解決なら再確認する');
+        $this->jobRun(['slot_key' => '2026-11-01 07:00', 'started_at' => '2026-11-03 11:00:00', 'finished_at' => '2026-11-03 11:05:00']);
+        $this->assertSame('HEALTHY', $this->outcomes($this->exec($c, '2026-11-03 12:00', $cfg))['{"business_date":"2026-11-01","job":"stats.refresh_updated","slot":"07:00"}'], '同じ枠の完了で復旧');
+    }
+
+    /** 対象日別: 親が成功でも対象日の子記録が無ければ未完了。部門同期指定の枠は部門同期も必要。別の日の成功では解消しない */
+    public function test_core_stats_job_dates_checks_each_target_date_and_department_sync(): void
+    {
+        $this->statsTable();
+        $c = new Core\StatsJobDatesCheck;
+        $this->jobRun(['options_json' => '{"previous_boundary":6,"sync_departments":true}', 'target_dates_json' => '["2026-11-01","2026-11-02","2026-11-03"]', 'target_count' => 3]);
+        $this->sourceInsert('stats_import_runs', [
+            ['job_type' => 'daily_aggregate', 'source_system' => 'core_earning', 'status' => 'succeeded', 'period_from' => '2026-11-01', 'period_to' => '2026-11-01', 'started_at' => '2026-11-03 07:01:00'],
+            ['job_type' => 'daily_aggregate', 'source_system' => 'core_earning', 'status' => 'succeeded', 'period_from' => '2026-11-02', 'period_to' => '2026-11-02', 'started_at' => '2026-11-03 07:02:00'],
+            ['job_type' => 'daily_aggregate', 'source_system' => 'core_earning', 'status' => 'succeeded', 'period_from' => '2026-11-03', 'period_to' => '2026-11-03', 'started_at' => '2026-11-02 19:02:00'], // 親より前の古い成功は数えない
+            ['job_type' => 'daily_department_sync', 'source_system' => 'core_earning', 'status' => 'succeeded', 'period_from' => '2026-11-01', 'period_to' => '2026-11-01', 'started_at' => '2026-11-03 07:01:30'],
+            ['job_type' => 'daily_department_sync', 'source_system' => 'core_earning', 'status' => 'failed', 'period_from' => '2026-11-02', 'period_to' => '2026-11-02', 'started_at' => '2026-11-03 07:02:30'],
+        ]);
+        $this->assertArrayNotHasKey('{"business_date":"2026-11-03","job":"stats.refresh_updated","kind":"aggregate"}', $this->outcomes($this->exec($c, '2026-11-03 07:12')), '完了直後 10 分は子記録の反映を待つ');
+        $o = $this->outcomes($this->exec($c, '2026-11-03 07:30'));
+        $this->assertSame('HEALTHY', $o['{"business_date":"2026-11-01","job":"stats.refresh_updated","kind":"aggregate"}']);
+        $this->assertSame('HEALTHY', $o['{"business_date":"2026-11-01","job":"stats.refresh_updated","kind":"dept"}']);
+        $this->assertSame('HEALTHY', $o['{"business_date":"2026-11-02","job":"stats.refresh_updated","kind":"aggregate"}']);
+        $this->assertSame('VIOLATION', $o['{"business_date":"2026-11-02","job":"stats.refresh_updated","kind":"dept"}'], '部門同期が失敗');
+        $this->assertSame('VIOLATION', $o['{"business_date":"2026-11-03","job":"stats.refresh_updated","kind":"aggregate"}'], '3 日中 1 日未集計でも全体は未完了');
+        // 次の枠で 11/03 だけ成功 → 11/03 は復旧、11/02 の部門同期は残る
+        $this->sourceInsert('stats_import_runs', [['job_type' => 'daily_aggregate', 'source_system' => 'core_earning', 'status' => 'succeeded', 'period_from' => '2026-11-03', 'period_to' => '2026-11-03', 'started_at' => '2026-11-03 08:11:00']]);
+        $o = $this->outcomes($this->exec($c, '2026-11-03 08:40'));
+        $this->assertSame('HEALTHY', $o['{"business_date":"2026-11-03","job":"stats.refresh_updated","kind":"aggregate"}']);
+        $this->assertSame('VIOLATION', $o['{"business_date":"2026-11-02","job":"stats.refresh_updated","kind":"dept"}']);
+    }
+
+    /** 前日分の日次確定: 確定記録＋確定印＋部門統計が期限までに揃う。別の日付の成功で代用しない */
+    public function test_core_stats_daily_finalize_requires_same_target_date(): void
     {
         $this->statsTable();
         $c = new Core\StatsDailyFinalizeCheck;
-        $this->assertArrayNotHasKey('{"business_date":"2026-11-02"}', $this->outcomes($this->exec($c, '2026-11-03 02:30')), '判定時刻前');
+        $this->assertArrayNotHasKey('{"business_date":"2026-11-02"}', $this->outcomes($this->exec($c, '2026-11-03 02:30')), '期限前');
         $this->assertSame('VIOLATION', $this->outcomes($this->exec($c, '2026-11-03 02:50'))['{"business_date":"2026-11-02"}']);
-        $this->sourceInsert('stats_import_runs', [
-            ['job_type' => 'daily_finalize', 'source_system' => 'core_earning', 'status' => 'succeeded', 'started_at' => '2026-11-03 02:05:00'],
-            ['job_type' => 'daily_department_sync', 'source_system' => 'mixed', 'status' => 'succeeded', 'started_at' => '2026-11-03 02:20:00'],
-        ]);
-        $this->assertSame('HEALTHY', $this->outcomes($this->exec($c, '2026-11-03 02:50'))['{"business_date":"2026-11-02"}'], '対象は前営業日');
+        // 別の日の成功では解消しない
+        $this->sourceInsert('stats_import_runs', [['job_type' => 'daily_finalize', 'source_system' => 'core_earning', 'status' => 'succeeded', 'period_from' => '2026-11-01', 'period_to' => '2026-11-01', 'started_at' => '2026-11-03 02:05:00']]);
+        $this->assertSame('VIOLATION', $this->outcomes($this->exec($c, '2026-11-03 02:50'))['{"business_date":"2026-11-02"}']);
+        $this->sourceInsert('stats_import_runs', [['job_type' => 'daily_finalize', 'source_system' => 'core_earning', 'status' => 'succeeded', 'period_from' => '2026-11-02', 'period_to' => '2026-11-02', 'started_at' => '2026-11-03 02:06:00']]);
+        $this->sourceInsert('stats_daily_buyer_trade_profits', [['stats_date' => '2026-11-02', 'finalized_at' => null]]);
+        $this->assertSame('VIOLATION', $this->outcomes($this->exec($c, '2026-11-03 02:50'))['{"business_date":"2026-11-02"}'], '確定印と部門統計が無い');
+        \Illuminate\Support\Facades\DB::connection('monitor_source')->table('stats_daily_buyer_trade_profits')->update(['finalized_at' => '2026-11-03 02:06:30']);
+        $this->sourceInsert('stats_daily_department_trade_profits', [['stats_date' => '2026-11-02']]);
+        $this->assertSame('HEALTHY', $this->outcomes($this->exec($c, '2026-11-03 02:50'))['{"business_date":"2026-11-02"}']);
+        // 売上の無い日（顧客別の行が無い）は確定記録の成功だけで正常
+        $this->sourceInsert('stats_import_runs', [['job_type' => 'daily_finalize', 'source_system' => 'core_earning', 'status' => 'succeeded', 'period_from' => '2026-11-03', 'period_to' => '2026-11-03', 'started_at' => '2026-11-04 02:06:00']]);
+        $this->assertSame('HEALTHY', $this->outcomes($this->exec($c, '2026-11-04 02:50'))['{"business_date":"2026-11-03"}']);
+    }
+
+    /** スケジューラ生存: ノード単位の停止 → ERROR、全停止 → CRITICAL、廃止ノードは無視 */
+    public function test_core_scheduler_heartbeat(): void
+    {
+        $this->statsTable();
+        $c = new Core\SchedulerHeartbeatCheck;
+        $this->sourceInsert('core_scheduler_heartbeats', [['node' => 'hana-prod-1', 'last_tick_at' => '2026-11-03 09:59:30'], ['node' => 'hana-prod-2', 'last_tick_at' => '2026-11-03 09:50:00'], ['node' => 'old-node', 'last_tick_at' => '2026-10-01 00:00:00']]);
+        $o = $this->outcomes($this->exec($c, '2026-11-03 10:00'));
+        $this->assertSame('HEALTHY', $o['{"node":"hana-prod-1"}']);
+        $this->assertSame('VIOLATION', $o['{"node":"hana-prod-2"}']);
+        $this->assertSame('HEALTHY', $o['{"node":"all"}']);
+        $this->assertArrayNotHasKey('{"node":"old-node"}', $o, '7 日以上前のノードは無視');
+        $r = $this->exec($c, '2026-11-03 10:10');
+        $all = collect($r->observations)->first(fn ($x) => $x->scope === ['node' => 'all']);
+        $this->assertSame('VIOLATION', $all->outcome->value);
+        $this->assertSame('CRITICAL', $all->severity->value, '全ノード停止は重大');
     }
 
     public function test_core_sales_performance_and_closing(): void

@@ -25,8 +25,11 @@ class FeatureRegistry
     public const FEATURES = [
         // ---- 勘定衆 CORE ----
         'core.stats' => ['site' => 'CORE', 'name' => '統計集計', 'sort' => 10, 'default' => false,
-            'checks' => ['core.stats_daily_aggregate', 'core.stats_daily_finalize', 'core.stats_sales_performance'],
+            'checks' => ['core.stats_job_slot', 'core.stats_job_dates', 'core.stats_daily_finalize', 'core.stats_sales_performance'],
             'detect' => ['sql' => 'SELECT 1 FROM stats_import_runs WHERE created_at >= ? LIMIT 1', 'days' => 7, 'reason' => '直近 7 日に統計集計（stats_import_runs）の実行あり']],
+        'core.scheduler' => ['site' => 'CORE', 'name' => 'スケジューラ（cron）の生存', 'sort' => 15, 'default' => false,
+            'checks' => ['core.scheduler_heartbeat'],
+            'detect' => ['sql' => 'SELECT 1 FROM core_scheduler_heartbeats WHERE last_tick_at >= ? LIMIT 1', 'days' => 1, 'reason' => '直近 1 日にスケジューラの生存記録（core_scheduler_heartbeats）あり']],
         'core.closing' => ['site' => 'CORE', 'name' => '締め処理', 'sort' => 20, 'default' => false,
             'checks' => ['core.closing_process'],
             'detect' => ['sql' => 'SELECT 1 FROM closing_processes WHERE created_at >= ? LIMIT 1', 'days' => 90, 'reason' => '直近 90 日に締め処理（closing_processes）の実行あり']],
