@@ -77,7 +77,7 @@
                         x-on:click="(() => { const h = document.documentElement; const t = h.dataset.theme === 'light' ? 'dark' : 'light'; h.dataset.theme = t; h.classList.toggle('dark', t === 'dark'); try { localStorage.setItem('sakemaru-monitor-theme-v2', t); localStorage.setItem('theme', t); } catch (e) {} })()">
                     {!! Icon::svg('sun') !!}
                 </button>
-                @php($noticeCount = count($page->banners()) + $s['unack'])
+                @php($noticeCount = count(array_filter($page->banners(), fn ($b) => $b['level'] !== 'info')) + $s['unack'])
                 <span class="notice-trigger {{ $noticeCount > 0 ? 'has-notices' : '' }}" data-count="{{ $noticeCount }}">{{ $page->noticesAction }}</span>
                 <span class="avatar" title="{{ $s['user_name'] }}">{{ $s['initials'] }}</span>
             </div>

@@ -49,7 +49,9 @@ class MonitorHealthService
 
         $oldestPending = Notification::query()->whereIn('status', ['PENDING', 'RETRY_WAIT', 'SENDING'])->orderBy('id')->first(['created_at', 'status']);
         $pendingAge = $oldestPending ? (int) CarbonImmutable::instance($oldestPending->created_at)->diffInSeconds($now) : 0;
-        $blocked = Notification::query()->where('status', 'BLOCKED')->limit(50)->count();
+        // 配送不可は直近の分だけ数える（経路設定前の古い BLOCKED が永遠にお知らせに残らないように。監視項目 monitor.notification と同じ窓）
+        $blockedWindow = (int) ($cfg['notification']['blocked_window_seconds'] ?? 3600);
+        $blocked = Notification::query()->where('status', 'BLOCKED')->where('created_at', '>=', $now->subSeconds($blockedWindow))->limit(50)->count();
 
         $spool = $this->spoolUsage();
         $retentionLag = $this->retentionLagHours($now);
@@ -94,7 +96,7 @@ class MonitorHealthService
             $b[] = ['level' => 'error', 'text' => '通知が '.intdiv($s['notifications']['oldest_pending_seconds'], 60).' 分以上未送信です。配送ワーカーまたは Slack 到達性を確認してください。'];
         }
         if ($s['notifications']['blocked_count'] > 0) {
-            $b[] = ['level' => 'error', 'text' => '配送不可（BLOCKED）の通知が '.$s['notifications']['blocked_count'].' 件あります。通知経路の設定を確認してください。'];
+            $b[] = ['level' => 'error', 'text' => '直近 '.intdiv((int) ($cfg['notification']['blocked_window_seconds'] ?? 3600), 60).' 分に配送不可（BLOCKED）になった通知が '.$s['notifications']['blocked_count'].' 件あります。通知経路の設定を確認してください。'];
         }
         if ($s['checker']['state'] !== 'OK') {
             $b[] = ['level' => $s['checker']['state'] === 'NEVER' ? 'warning' : 'error', 'text' => $s['checker']['state'] === 'NEVER' ? '監視実行器がまだ一度も実行されていません（monitor:run-checks）。' : '監視実行器の最終実行から '.intdiv($s['checker']['age_seconds'], 60).' 分経過しています。表示データが古い可能性があります。'];
