@@ -9,6 +9,7 @@ export default defineConfig({
                 'resources/css/app.css',
                 'resources/css/filament/admin/theme.css',
                 'resources/css/monitor/monitor.css',
+                'resources/css/monitor/login.css',
                 'resources/js/app.js',
             ],
             refresh: true,

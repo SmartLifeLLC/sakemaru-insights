@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+<!-- silhouette -->
+<path d="M256 22 L448 75 L448 242 C448 365 365 446 256 496 C147 446 64 365 64 242 L64 75 Z" fill="#14224c"/>
+<!-- second inner border in pale silver -->
+<path d="M256 48 L424 95 L424 244 C424 346 359 416 256 466 C153 416 88 346 88 244 L88 95 Z" fill="none" stroke="#eef1f6" stroke-width="11" stroke-linejoin="round"/>
+<path d="M256 67 L409 111 L409 243 C409 332 350 396 256 446 C162 396 103 332 103 243 L103 111 Z" fill="#858c9a"/>
+<!-- castle silhouette first -->
+<g transform="translate(49,64) scale(0.81)">
+<g stroke="#14224c" stroke-linejoin="round" stroke-linecap="round">
+  <path d="M155 339 L357 339 L386 398 L126 398 Z" fill="#ffffff" stroke-width="11"/>
+  <path d="M142 327 Q256 312 370 327 L384 336 Q256 354 128 337 Z" fill="#14224c" stroke-width="6"/>
+  <path d="M174 289 L338 289 L355 328 L157 328 Z" fill="#ffffff" stroke-width="8"/>
+  <path d="M159 282 Q255 265 352 281 L364 293 Q256 307 148 293 Z" fill="#14224c" stroke-width="7"/>
+  <path d="M196 220 L315 220 L328 274 L183 274 Z" fill="#ffffff" stroke-width="7"/>
+  <path d="M178 214 Q258 196 332 214 L340 229 Q257 239 170 229 Z" fill="#14224c" stroke-width="8"/>
+</g>
+<!-- decorative roof risers -->
+<path d="M196 206 L205 188 L220 204 L237 190 L254 204 L272 190 L287 204 L304 191 L315 207 Z" fill="#14224c"/>
+<!-- top story windows -->
+<path d="M214 241 Q221 230 228 241 L228 266 L214 266 Z M249 241 Q256 230 263 241 L263 266 L249 266 Z M285 241 Q292 230 299 241 L299 266 L285 266 Z" fill="#14224c"/>
+<!-- middle windows -->
+<path d="M192 308 Q201 300 210 308 L210 324 L192 324 Z M244 308 Q255 297 266 308 L266 324 L244 324 Z M298 308 Q307 300 316 308 L316 324 L298 324 Z" fill="#14224c"/>
+<!-- arched gate -->
+<path d="M231 398 L231 374 A25 25 0 0 1 281 374 L281 398 Z" fill="#14224c"/>
+<!-- tiny arrow slits -->
+<rect x="166" y="359" width="10" height="11" rx="1" fill="#c7ccd5"/>
+<rect x="336" y="359" width="10" height="11" rx="1" fill="#c7ccd5"/>
+</g>
+</svg>

@@ -27,8 +27,9 @@ class MonitorPanelProvider extends PanelProvider
         return $panel
             ->id('monitor')
             ->path('monitor')
-            ->login()
+            ->login(\App\Filament\Monitor\Auth\Login::class)
             ->brandName('算盤 監視')
+            ->favicon(fn (): string => asset('images/moribito/favicon.png'))
             ->colors(['primary' => Color::Amber, 'gray' => Color::Slate])
             ->darkMode(true)
             ->maxContentWidth('full')
