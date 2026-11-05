@@ -81,6 +81,19 @@ class PagesTest extends MonitoringTestCase
         $this->get('/monitor')->assertRedirect('/monitor/login');
     }
 
+    public function test_login_page_shows_moribito_branding_and_form(): void
+    {
+        $this->withoutVite();
+        $this->get('/monitor/login')->assertOk()
+            ->assertSee('images/moribito/wordmark.svg')
+            ->assertSee('おかえりなさい')
+            ->assertSee('ログイン状態を保持')
+            ->assertSee('images/moribito/shield.svg')
+            ->assertSee('images/moribito/login-bg.jpg')
+            ->assertSee('images/moribito/favicon.png')
+            ->assertSee('wire:submit="authenticate"', false);
+    }
+
     public function test_ingest_api_rejects_unsigned_requests(): void
     {
         $this->postJson('/internal/monitor/events', ['events' => []])->assertStatus(401);
