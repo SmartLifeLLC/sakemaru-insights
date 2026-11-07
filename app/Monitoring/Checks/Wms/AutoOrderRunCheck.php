@@ -7,6 +7,7 @@ use App\Monitoring\Contracts\CheckDefinition;
 use App\Monitoring\Services\CheckContext;
 use App\Monitoring\Services\CheckResult;
 use App\Monitoring\Services\Observation;
+use Carbon\CarbonImmutable;
 
 /**
  * wms.auto_order_run: 自動発注の定時実行（wms_auto_order_runs, slot_key = "YYYY-MM-DD:HH:MM"）。
@@ -17,7 +18,7 @@ class AutoOrderRunCheck extends BusinessCheck
     public function definition(): CheckDefinition
     {
         return new CheckDefinition('wms.auto_order_run', 'WMS', '自動発注の定時実行', '有効倉庫の自動発注が予定時刻＋猶予までに完了しているか', 1, 900, 900, 'RB-11', false, true, 1, true,
-            ['slots' => ['01:00'], 'grace_minutes' => 90], ['slots', 'grace_minutes'], '予定枠は本番実績（01:00）から仮置き。正式スケジュール確認後に slots を確定');
+            ['slots' => 'auto', 'grace_minutes' => 90], ['slots', 'grace_minutes'], 'slots=auto で倉庫設定（replenishment_config の weekdays / execution_time / sunday_execution_time）から曜日ごとの予定を読む。固定したい場合だけ ["01:00"] や {"sun":["22:00"]} を指定');
     }
 
     public function evaluate(CheckContext $ctx): CheckResult
@@ -27,11 +28,23 @@ class AutoOrderRunCheck extends BusinessCheck
         if ($enabled === 0) {
             return CheckResult::single(Observation::healthy('自動発注が有効な倉庫はありません（対象なし）。', ['slot' => 'none']));
         }
-        $slots = (array) $ctx->config('slots', ['01:00']);
         $grace = (int) $ctx->config('grace_minutes', 90);
+        $configured = $ctx->config('slots', 'auto');
+        // 予定枠: 既定は倉庫設定から曜日ごとに導出（日曜だけ 22:00 など）。倉庫ごとに異なる場合は枠ごとの対象倉庫数で判定する
+        $auto = $configured === 'auto' || $configured === null || $configured === [];
+        [$slots, $warehousesBySlot] = $auto ? $this->slotsFromSettings($src) : [(array) $configured, []];
+        if ($slots === []) {
+            return CheckResult::single(Observation::healthy('自動発注の予定枠が設定されていません（倉庫設定に実行時刻なし）。', ['slot' => 'none']));
+        }
         $obs = [];
         foreach ($this->dueSlots($ctx, $slots, $grace) as $slot) {
             $key = $slot['date'].':'.$slot['time'];
+            $dow = self::DOW[CarbonImmutable::parse($slot['date'], 'Asia/Tokyo')->dayOfWeek];
+            $enabledForSlot = $auto ? count($warehousesBySlot[$dow][$slot['time']] ?? []) : $enabled;
+            if ($enabledForSlot === 0) {
+                continue; // この曜日・時刻に予定のある倉庫は無い
+            }
+            $enabled = $enabledForSlot;
             $rows = $src->select('SELECT status, COUNT(*) AS c, COUNT(DISTINCT warehouse_id) AS wh, SUM(failed_count) AS failed, SUM(generated_count) AS generated_total, SUM(held_count) AS held FROM wms_auto_order_runs WHERE slot_key = ? AND is_preview = 0 GROUP BY status', [$key]);
             $by = [];
             $completedWh = 0;
@@ -61,5 +74,40 @@ class AutoOrderRunCheck extends BusinessCheck
         }
 
         return new CheckResult($obs);
+    }
+
+    /**
+     * 倉庫設定から予定枠を導出する。蔵の GenerationSchedule::dueSlot と同じ規則:
+     * weekdays（0=日〜6=土）に含まれる曜日だけ、日曜は sunday_execution_time（無ければ execution_time）、他は execution_time。
+     *
+     * @return array{0:array<string,string[]>,1:array<string,array<string,int[]>>} [dow => times, dow => [time => warehouse_ids]]
+     */
+    private function slotsFromSettings(\App\Monitoring\Services\SourceReader $src): array
+    {
+        $rows = $src->select('SELECT warehouse_id, replenishment_config FROM wms_warehouse_auto_order_settings WHERE is_auto_order_enabled = 1 AND replenishment_config IS NOT NULL', []);
+        $byDow = [];
+        $wh = [];
+        foreach ($rows as $r) {
+            $cfg = json_decode((string) $r->replenishment_config, true) ?: [];
+            $weekdays = array_map('intval', (array) ($cfg['weekdays'] ?? []));
+            foreach ($weekdays as $d) {
+                if ($d < 0 || $d > 6) {
+                    continue;
+                }
+                $dow = self::DOW[$d];
+                $time = $d === 0 ? ($cfg['sunday_execution_time'] ?? $cfg['execution_time'] ?? null) : ($cfg['execution_time'] ?? null);
+                if (! is_string($time) || ! preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $time)) {
+                    continue;
+                }
+                $byDow[$dow][] = $time;
+                $wh[$dow][$time][] = (int) $r->warehouse_id;
+            }
+        }
+        foreach ($byDow as $dow => $times) {
+            $byDow[$dow] = array_values(array_unique($times));
+            sort($byDow[$dow]);
+        }
+
+        return [$byDow, $wh];
     }
 }
