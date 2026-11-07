@@ -57,7 +57,7 @@ class BusinessChecksTest extends MonitoringTestCase
 
     private function wmsAutoOrderTables(): void
     {
-        $this->sourceTable('wms_warehouse_auto_order_settings', fn ($t) => [$t->id(), $t->unsignedBigInteger('warehouse_id'), $t->boolean('is_auto_order_enabled')]);
+        $this->sourceTable('wms_warehouse_auto_order_settings', fn ($t) => [$t->id(), $t->unsignedBigInteger('warehouse_id'), $t->boolean('is_auto_order_enabled'), $t->text('replenishment_config')->nullable()]);
         $this->sourceTable('wms_auto_order_runs', fn ($t) => [$t->id(), $t->string('slot_key'), $t->boolean('is_preview')->default(0), $t->string('status'), $t->unsignedBigInteger('warehouse_id'), $t->integer('failed_count')->default(0), $t->integer('generated_count')->default(0), $t->integer('held_count')->default(0)]);
     }
 
@@ -67,7 +67,9 @@ class BusinessChecksTest extends MonitoringTestCase
         $c = new Wms\AutoOrderRunCheck;
         $this->assertSame('HEALTHY', $this->only($this->exec($c, '2026-11-03 09:00')), '有効倉庫なし → 対象なし');
 
-        $this->sourceInsert('wms_warehouse_auto_order_settings', [['warehouse_id' => 1, 'is_auto_order_enabled' => 1], ['warehouse_id' => 2, 'is_auto_order_enabled' => 1]]);
+        // 倉庫設定（蔵の replenishment_config）: 日〜土、平日 01:00、日曜だけ 22:00（華本番と同じ）
+        $cfg = json_encode(['weekdays' => [0, 1, 2, 3, 4, 5, 6], 'execution_time' => '01:00', 'sunday_execution_time' => '22:00']);
+        $this->sourceInsert('wms_warehouse_auto_order_settings', [['warehouse_id' => 1, 'is_auto_order_enabled' => 1, 'replenishment_config' => $cfg], ['warehouse_id' => 2, 'is_auto_order_enabled' => 1, 'replenishment_config' => $cfg]]);
         $o = $this->outcomes($this->exec($c, '2026-11-03 02:00'));
         $this->assertArrayNotHasKey('{"business_date":"2026-11-03","slot":"01:00"}', $o, '01:00＋90 分の前は当日枠を判定しない');
         $this->assertSame('VIOLATION', $o['{"business_date":"2026-11-02","slot":"01:00"}'], '26 時間以内の前日枠は再判定');
@@ -84,6 +86,19 @@ class BusinessChecksTest extends MonitoringTestCase
 
         \DB::connection('monitor_source')->table('wms_auto_order_runs')->where('warehouse_id', 2)->update(['failed_count' => 3]);
         $this->assertSame('WARNING', $first('2026-11-03 02:31'), 'failed_count > 0');
+
+        // 日曜（2026-11-08）は 01:00 の枠が無く 22:00。02:40 時点で 01:00 枠を未完了にしない（MON-000082 の誤検知）
+        $sun = $this->outcomes($this->exec($c, '2026-11-08 02:40'));
+        $this->assertArrayNotHasKey('{"business_date":"2026-11-08","slot":"01:00"}', $sun, '日曜に 01:00 枠は無い');
+        $this->assertSame('VIOLATION', $this->outcomes($this->exec($c, '2026-11-08 23:31'))['{"business_date":"2026-11-08","slot":"22:00"}'], '日曜 22:00＋90 分で未完了');
+        $this->sourceInsert('wms_auto_order_runs', [['slot_key' => '2026-11-08:22:00', 'status' => 'COMPLETED', 'warehouse_id' => 1], ['slot_key' => '2026-11-08:22:00', 'status' => 'COMPLETED', 'warehouse_id' => 2]]);
+        $this->assertSame('HEALTHY', $this->outcomes($this->exec($c, '2026-11-08 23:31'))['{"business_date":"2026-11-08","slot":"22:00"}']);
+        // 倉庫ごとに予定が違う場合は、枠ごとの対象倉庫数で判定する
+        \DB::connection('monitor_source')->table('wms_warehouse_auto_order_settings')->where('warehouse_id', 2)->update(['replenishment_config' => json_encode(['weekdays' => [1, 2, 3, 4, 5], 'execution_time' => '03:00'])]);
+        $mon = $this->outcomes($this->exec($c, '2026-11-09 04:31'));
+        $this->sourceInsert('wms_auto_order_runs', ['slot_key' => '2026-11-09:01:00', 'status' => 'COMPLETED', 'warehouse_id' => 1]);
+        $this->assertSame('VIOLATION', $mon['{"business_date":"2026-11-09","slot":"03:00"}'], '倉庫 2 の 03:00 枠');
+        $this->assertSame('HEALTHY', $this->outcomes($this->exec($c, '2026-11-09 04:31'))['{"business_date":"2026-11-09","slot":"01:00"}'], '倉庫 1 だけの 01:00 枠は 1 倉庫で完了');
     }
 
     public function test_wms_auto_order_calc(): void

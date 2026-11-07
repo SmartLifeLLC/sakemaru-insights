@@ -10,7 +10,7 @@ use Carbon\CarbonImmutable;
  */
 class RunbookRegistry
 {
-    public const VERSION = 4;
+    public const VERSION = 5;
 
     /** @return array<string,array<string,string>> */
     public static function definitions(): array
@@ -140,7 +140,7 @@ class RunbookRegistry
                 'title' => '蔵: 自動発注の未実行・発注計算ジョブの失敗',
                 'symptoms' => '自動発注の予定枠（例 01:00）が猶予内に COMPLETED にならない。発注計算ジョブ（ORDER_CALC / SALES_BASED_CALC 等）が FAILED、RUNNING のまま 60 分超、PENDING のまま 30 分超。',
                 'impact' => '当日の発注データが生成されず、仕入先への発注（JX 送信）が遅れる。欠品・過剰在庫の原因になる。',
-                'first_checks' => "1. 対象 slot_key（YYYY-MM-DD:HH:MM）と有効倉庫数\n2. 倉庫別の wms_auto_order_runs.status と failed_count / held_count\n3. wms_auto_order_job_controls の最新行（process_name 別）と error_details\n4. 蔵のスケジューラ・キューワーカーの生存",
+                'first_checks' => "1. 対象 slot_key（YYYY-MM-DD:HH:MM）と有効倉庫数。予定時刻は倉庫設定（wms_warehouse_auto_order_settings.replenishment_config の execution_time / sunday_execution_time / weekdays）で曜日ごとに異なる\n2. 倉庫別の wms_auto_order_runs.status と failed_count / held_count\n3. wms_auto_order_job_controls の最新行（process_name 別）と error_details\n4. 蔵のスケジューラ・キューワーカーの生存",
                 'read_only_checks' => "・SELECT warehouse_id, status, generated_count, held_count, failed_count FROM wms_auto_order_runs WHERE slot_key = ? AND is_preview = 0\n・SELECT process_name, status, started_at, finished_at FROM wms_auto_order_job_controls ORDER BY id DESC LIMIT 20",
                 'decision_steps' => "A. 実行記録なし → スケジューラ停止・ロック残りを確認\nB. 一部倉庫のみ完了 → 未完了倉庫の設定（発注先・在庫スナップショット）を確認\nC. FAILED → error_details の例外で原因を切り分け（DB 待ち・マスター不整合）\nD. RUNNING 滞留 → 実プロセスが動いているか確認してから判断（二重実行に注意）",
                 'recovery_procedure' => '再実行は蔵の画面から倉庫・slot を指定して行う。二重発注を避けるため、生成済みの発注データが無いことを先に確認する。監視画面からは実行しない。',

@@ -197,8 +197,11 @@ class RuleService
         $hhmm = fn ($t) => is_string($t) && preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $t);
         $bad = fn (string $why) => throw new \InvalidArgumentException("設定 {$key} が不正です（{$why}）。");
         if ($key === 'slots' || str_starts_with($key, 'slots_')) {
+            if (is_string($v) && strtolower(trim($v)) === 'auto') {
+                return 'auto'; // 業務側の設定（倉庫設定など）から予定枠を導出する監視項目
+            }
             if (! is_array($v) || $v === []) {
-                $bad('HH:MM の配列、または曜日ごとの配列');
+                $bad('HH:MM の配列、曜日ごとの配列、または auto');
             }
             $days = ['daily', 'sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
             if (array_is_list($v)) {
