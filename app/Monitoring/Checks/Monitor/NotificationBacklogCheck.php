@@ -21,7 +21,10 @@ class NotificationBacklogCheck extends AbstractCheck
     public function evaluate(CheckContext $ctx): CheckResult
     {
         $stale = (int) $ctx->config('stale_seconds', 300);
-        $oldest = Notification::query()->whereIn('status', ['PENDING', 'RETRY_WAIT', 'SENDING'])->orderBy('id')->first(['id', 'created_at', 'status', 'last_error_code']);
+        // 「未送信」は送れる状態（available_at 到来）になってからの経過で測る。電話の猶予（作成から 5 分待って発信）や再試行の待機は遅延ではない
+        $oldest = Notification::query()->whereIn('status', ['PENDING', 'RETRY_WAIT', 'SENDING'])
+            ->where(fn ($q) => $q->whereNull('available_at')->orWhere('available_at', '<=', $ctx->nowUtc))
+            ->orderByRaw('COALESCE(available_at, created_at)')->first(['id', 'created_at', 'available_at', 'status', 'last_error_code']);
         // 配送不可は直近の分だけを見る（経路を設定した後に、過去の配送不可が残っていても案件が消えないのを防ぐ）
         $window = (int) $ctx->config('blocked_window_seconds', 3600);
         $blocked = Notification::query()->where('status', 'BLOCKED')->where('created_at', '>=', $ctx->nowUtc->subSeconds($window))->orderByDesc('id')->limit(5)->get(['id', 'last_http_status', 'last_error_code']);
@@ -32,7 +35,8 @@ class NotificationBacklogCheck extends AbstractCheck
             $obs[] = Observation::healthy('配送不可の通知はありません。', ['queue' => 'blocked']);
         }
         if ($oldest) {
-            $age = (int) CarbonImmutable::instance($oldest->created_at)->diffInSeconds($ctx->nowUtc);
+            $since = $oldest->available_at ? max(CarbonImmutable::instance($oldest->available_at), CarbonImmutable::instance($oldest->created_at)) : CarbonImmutable::instance($oldest->created_at);
+            $age = (int) $since->diffInSeconds($ctx->nowUtc);
             if ($age > $stale) {
                 $obs[] = Observation::violation('通知 N-'.$oldest->id.' が '.intdiv($age, 60).'分間未送信です（'.($oldest->status instanceof \BackedEnum ? $oldest->status->value : (string) $oldest->status).' / '.($oldest->last_error_code ?: '-').'）。', ['queue' => 'pending'], null, ['oldest_age_seconds' => $age], [], 'MONITOR_NOTIFICATION_STALE');
             } else {

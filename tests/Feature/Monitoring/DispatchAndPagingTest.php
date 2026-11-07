@@ -231,12 +231,21 @@ class DispatchAndPagingTest extends MonitoringTestCase
         app(ObservationIngestor::class)->ingestInternal([$this->event()]);
         $i = Incident::sole();
         Notification::query()->delete();
-        Notification::query()->create(['incident_id' => $i->id, 'generation' => 1, 'notification_key' => 'old', 'kind' => 'NEW', 'route_key' => 'error_channel', 'severity' => 'ERROR', 'status' => 'RETRY_WAIT', 'last_error_code' => 'http_500', 'available_at' => now('UTC'), 'created_at' => now('UTC')->subMinutes(11)]);
+        Notification::query()->create(['incident_id' => $i->id, 'generation' => 1, 'notification_key' => 'old', 'kind' => 'NEW', 'route_key' => 'error_channel', 'severity' => 'ERROR', 'status' => 'RETRY_WAIT', 'last_error_code' => 'http_500', 'available_at' => now('UTC')->subMinutes(6), 'created_at' => now('UTC')->subMinutes(11)]);
         $check = new \App\Monitoring\Checks\Monitor\NotificationBacklogCheck;
-        $r = $check->evaluate(new \App\Monitoring\Services\CheckContext(\App\Monitoring\Services\SourceReader::fromConfig(), CarbonImmutable::now('UTC'), $check->definition()->defaultConfig));
-        $stale = collect($r->observations)->first(fn ($o) => $o->scope === ['queue' => 'pending']);
+        $eval = fn () => collect($check->evaluate(new \App\Monitoring\Services\CheckContext(\App\Monitoring\Services\SourceReader::fromConfig(), CarbonImmutable::now('UTC'), $check->definition()->defaultConfig))->observations)->first(fn ($o) => $o->scope === ['queue' => 'pending']);
+        $stale = $eval();
         $this->assertSame('VIOLATION', $stale->outcome->value);
         $this->assertStringContainsString('RETRY_WAIT / http_500', $stale->summary);
+
+        // 電話の猶予（作成から 5 分待って発信）や再試行の待機は「未送信」に数えない（MON-000018 第 5 世代の誤検知）
+        Notification::query()->delete();
+        Notification::query()->create(['incident_id' => $i->id, 'generation' => 1, 'notification_key' => 'phone', 'kind' => 'NEW', 'route_key' => 'phone', 'severity' => 'ERROR', 'status' => 'PENDING', 'available_at' => now('UTC')->addSeconds(15), 'created_at' => now('UTC')->subMinutes(5)->subSeconds(1)]);
+        $this->assertSame('HEALTHY', $eval()->outcome->value, '送信可能時刻がまだ来ていない通知は遅延ではない');
+        Notification::query()->create(['incident_id' => $i->id, 'generation' => 1, 'notification_key' => 'due', 'kind' => 'NEW', 'route_key' => 'phone', 'severity' => 'ERROR', 'status' => 'SENDING', 'available_at' => now('UTC')->subMinutes(2), 'created_at' => now('UTC')->subMinutes(8)]);
+        $this->assertSame('HEALTHY', $eval()->outcome->value, '送信可能から 2 分なら正常（作成からは 8 分）');
+        Notification::query()->where('notification_key', 'due')->update(['available_at' => now('UTC')->subMinutes(6)]);
+        $this->assertSame('VIOLATION', $eval()->outcome->value, '送信可能から 6 分で遅延');
     }
 
     /** 経路を設定した後、過去の配送不可（BLOCKED）が残っていても monitor.notification は直近 1 時間だけを見る。 */
