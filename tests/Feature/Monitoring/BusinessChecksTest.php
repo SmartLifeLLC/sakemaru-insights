@@ -381,6 +381,27 @@ class BusinessChecksTest extends MonitoringTestCase
         $this->assertSame('HEALTHY', $o['{"business_date":"2026-10-31","process":"buyer_bill"}']);
         $this->sourceInsert('closing_processes', ['process_type' => 'supplier_bill', 'closing_date' => '2026-10-31', 'status' => 'completed', 'updated_at' => '2026-11-03 09:30:00']);
         $this->assertSame('HEALTHY', $this->outcomes($this->exec($c, '2026-11-03 10:00'))['{"business_date":"2026-10-31","process":"supplier_bill"}'], '再実行で復旧');
+
+        // 操作上の拒否（Core の status_code。closing_process_logs の error 行）は通知しない（MON-000084: 取消前の再締め → 74130）
+        $this->sourceTable('closing_process_logs', fn ($t) => [$t->id(), $t->unsignedBigInteger('closing_process_id'), $t->string('level'), $t->string('step'), $t->string('message'), $t->json('context')->nullable(), $t->dateTime('created_at')]);
+        $key = '{"business_date":"2026-10-31","process":"supplier_bill"}';
+        $fail = function (int $code = 0) {
+            $id = \DB::connection('monitor_source')->table('closing_processes')->insertGetId(['process_type' => 'supplier_bill', 'closing_date' => '2026-10-31', 'status' => 'failed', 'error_count' => 0, 'total_count' => 1, 'error_message' => '締め処理でエラーが発生しました', 'updated_at' => '2026-11-03 09:45:00']);
+            $this->sourceInsert('closing_process_logs', ['closing_process_id' => $id, 'level' => 'error', 'step' => 'complete', 'message' => '締め処理が失敗しました', 'context' => $code ? json_encode(['status_code' => $code]) : null, 'created_at' => '2026-11-03 09:45:00']);
+        };
+        $fail(74130);
+        $r = $this->exec($c, '2026-11-03 10:00');
+        $this->assertSame('HEALTHY', $this->outcomes($r)[$key], '既に締め済み（二重締めの防止）は障害にしない');
+        $this->assertStringContainsString('操作上の拒否', collect($r->observations)->first(fn ($o) => $o->scope === ['process' => 'supplier_bill', 'business_date' => '2026-10-31'])->summary);
+        $fail(72001);
+        $this->assertSame('HEALTHY', $this->outcomes($this->exec($c, '2026-11-03 10:00'))[$key], '締め対象の取引なし');
+        $fail(78001);
+        $this->assertSame('VIOLATION', $this->outcomes($this->exec($c, '2026-11-03 10:00'))[$key], 'それ以外の status_code は従来どおり ERROR');
+        $fail(0);
+        $this->assertSame('VIOLATION', $this->outcomes($this->exec($c, '2026-11-03 10:00'))[$key], 'status_code の無い失敗（例外）も ERROR');
+        // 監視ルールで対象コードを変えられる
+        $fail(74130);
+        $this->assertSame('VIOLATION', $this->outcomes($this->exec($c, '2026-11-03 10:00', ['ignore_status_codes' => [72001]]))[$key]);
     }
 
     private function externalTable(): void
