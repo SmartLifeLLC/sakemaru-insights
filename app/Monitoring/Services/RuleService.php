@@ -240,6 +240,14 @@ class RuleService
 
             return array_values(array_map(fn ($x) => mb_substr((string) $x, 0, 64), $v));
         }
+        if (str_ends_with($key, '_status_codes')) {
+            is_array($v) || $bad('整数の配列（例: [74130, 72001]）');
+            foreach ($v as $x) {
+                (is_numeric($x) && (int) $x == $x && (int) $x > 0) || $bad('整数: '.json_encode($x));
+            }
+
+            return array_values(array_unique(array_map('intval', $v)));
+        }
         if ($key === 'ratio') {
             (is_numeric($v) && (float) $v > 0 && (float) $v <= 100) || $bad('0 より大きく 100 以下の数値');
 

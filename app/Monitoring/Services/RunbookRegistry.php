@@ -10,7 +10,7 @@ use Carbon\CarbonImmutable;
  */
 class RunbookRegistry
 {
-    public const VERSION = 5;
+    public const VERSION = 6;
 
     /** @return array<string,array<string,string>> */
     public static function definitions(): array
@@ -186,9 +186,9 @@ class RunbookRegistry
             ],
             'RB-15' => [
                 'title' => '勘定衆: 締め処理の失敗',
-                'symptoms' => '仕入締め（supplier_bill）・得意先締め（buyer_bill）の最新実行が failed、または error_count > 0。',
+                'symptoms' => '仕入締め（supplier_bill）・得意先締め（buyer_bill）の最新実行が failed。ただし Core の操作上の拒否（74130 既に締め済み＝二重締めの防止、72001 締め対象の取引なし、75100 対象なし、76010 別の締めが実行中、76011 利用者の取消）は通知しない（監視ルール ignore_status_codes）。',
                 'impact' => '請求書・支払明細が作成されない、または一部欠落する。月次業務に直接影響する。',
-                'first_checks' => "1. closing_processes の process_type / closing_date / status / error_count / total_count / error_message\n2. 同じ締め日の再実行有無（最新行で判定）",
+                'first_checks' => "1. closing_processes の process_type / closing_date / status / error_count / total_count / error_message\n2. closing_process_logs の error 行の context.status_code（Core の StatusCode。例外なら status_code なし）\n3. 同じ締め日の再実行有無（最新行で判定）",
                 'read_only_checks' => '・エラー対象の取引先と伝票の状態（未確定伝票・マスター不備）',
                 'decision_steps' => "A. 一部取引先のみエラー → 該当取引先のマスター・伝票を確認\nB. 全件失敗 → 実行時の例外・DB 待ちを確認",
                 'recovery_procedure' => '締め処理の再実行は勘定衆の画面から業務担当が行う。監視画面からは実行しない。',
