@@ -5,6 +5,7 @@ namespace Tests\Feature\Monitoring;
 use App\Monitoring\Checks\Core;
 use App\Monitoring\Checks\Delivery;
 use App\Monitoring\Checks\Search;
+use App\Monitoring\Checks\Trade;
 use App\Monitoring\Checks\Wms;
 use App\Monitoring\Contracts\Check;
 use App\Monitoring\Services\CheckContext;
@@ -560,6 +561,25 @@ class BusinessChecksTest extends MonitoringTestCase
     // ------------------------------------------------------------------ 乃蓮（本番の状態値は小文字: sent / failed / succeeded）
 
     /** 華 本番で確認した実値（ret_report_mail_send_runs・ret_intage_pos_send_runs = sent|failed、ret_company_daily_sales_report_runs = succeeded|running|failed）で完了と判定できること。初回リリースで 'SUCCESS' 固定のため誤検知した回帰テスト。 */
+    public function test_trade_fixed_point_skips_slot_before_creation(): void
+    {
+        $this->sourceTable('ret_fixed_point_pos_schedules', fn ($t) => [$t->id(), $t->boolean('schedule_enabled'), $t->date('starts_on'), $t->date('ends_on'), $t->string('schedule_time'), $t->dateTime('schedule_last_run_at')->nullable(), $t->dateTime('schedule_next_run_at')->nullable(), $t->dateTime('created_at')->nullable()]);
+        $this->sourceInsert('ret_fixed_point_pos_schedules', [
+            // 当日 13:31 に作成、07:00 枠（MON-000089）→ 当日は判定しない
+            ['id' => 12, 'schedule_enabled' => 1, 'starts_on' => '2026-11-13', 'ends_on' => '2026-12-31', 'schedule_time' => '07:00', 'schedule_last_run_at' => null, 'schedule_next_run_at' => '2026-11-14 07:00:00', 'created_at' => '2026-11-13 13:31:45'],
+            // 前日以前に作成、08:00 枠が未実行 → 従来どおり違反
+            ['id' => 6, 'schedule_enabled' => 1, 'starts_on' => '2026-09-21', 'ends_on' => '2026-12-31', 'schedule_time' => '08:00', 'schedule_last_run_at' => '2026-11-12 08:00:01', 'schedule_next_run_at' => '2026-11-13 08:00:00', 'created_at' => '2026-09-20 19:40:15'],
+            // 当日の枠より前に作成（当日 05:00 作成、07:00 枠）→ 判定する
+            ['id' => 14, 'schedule_enabled' => 1, 'starts_on' => '2026-11-13', 'ends_on' => '2026-12-31', 'schedule_time' => '07:00', 'schedule_last_run_at' => '2026-11-13 07:00:02', 'schedule_next_run_at' => '2026-11-14 07:00:00', 'created_at' => '2026-11-13 05:00:00'],
+        ]);
+        $o = $this->outcomes($this->exec(new Trade\FixedPointCheck, '2026-11-13 13:46'));
+        $this->assertArrayNotHasKey('{"business_date":"2026-11-13","schedule_id":12}', $o, '作成前の枠は存在しない');
+        $this->assertSame('VIOLATION', $o['{"business_date":"2026-11-13","schedule_id":6}']);
+        $this->assertSame('HEALTHY', $o['{"business_date":"2026-11-13","schedule_id":14}']);
+        // 翌日は #12 も判定対象
+        $this->assertSame('VIOLATION', $this->outcomes($this->exec(new Trade\FixedPointCheck, '2026-11-14 09:01'))['{"business_date":"2026-11-14","schedule_id":12}']);
+    }
+
     public function test_trade_status_values_are_matched_case_insensitively(): void
     {
         $this->sourceTable('ret_report_mail_schedules', fn ($t) => [$t->id(), $t->string('report_type'), $t->string('slot_key'), $t->string('schedule_time'), $t->integer('business_date_offset')->default(0), $t->boolean('schedule_enabled')->default(1), $t->string('schedule_type')->default('daily'), $t->dateTime('paused_at')->nullable()]);
